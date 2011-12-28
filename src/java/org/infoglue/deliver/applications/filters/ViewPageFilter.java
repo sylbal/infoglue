@@ -135,7 +135,7 @@ public class ViewPageFilter implements Filter
         Timer t2 = new Timer();
         try
         {
-        	//System.out.println("requestURI:" + requestURI);
+        	//logger.info("requestURI:" + requestURI);
 			if(logger.isInfoEnabled())
 	        	logger.info("requestURI before decoding:" + requestURI);
             
@@ -148,7 +148,7 @@ public class ViewPageFilter implements Filter
 			String testRequestURI = new String(requestURI.getBytes(fromEncoding), toEncoding);
 			if(testRequestURI.indexOf((char)65533) == -1)
 				requestURI = testRequestURI;
-			//System.out.println("requestURI:" + requestURI);
+			//logger.info("requestURI:" + requestURI);
         }
         catch (Exception e) 
         {
@@ -166,8 +166,11 @@ public class ViewPageFilter implements Filter
             	throw new Exception("Not allowed to view protected assets...");
         	}
         	
-	        if (enableNiceURI.equalsIgnoreCase("true") && !uriMatcher.matches(requestURI)) 
+        	String remainingURI = httpRequest.getParameter("remainingURI");
+	        if (enableNiceURI.equalsIgnoreCase("true") && (!uriMatcher.matches(requestURI) || remainingURI != null)) 
 	        {
+	        	if(logger.isInfoEnabled())
+            		logger.info("Entering niceURI logic with:" + remainingURI);
 	            while(/*!CmsPropertyHandler.getOperatingMode().equals("3") &&*/ CmsPropertyHandler.getActuallyBlockOnBlockRequests() && RequestAnalyser.getRequestAnalyser().getBlockRequests())
 	            {
 	            	if(logger.isInfoEnabled())
@@ -191,7 +194,7 @@ public class ViewPageFilter implements Filter
 	                repositoryVOList = getRepositoryId(httpRequest, db);
 	                if(logger.isInfoEnabled())
 	                	logger.info("repositoryVOList:" + repositoryVOList.size());
-
+            
 	            	languageId = getLanguageId(httpRequest, httpSession, repositoryVOList, requestURI, db);
 	            
 	                Integer siteNodeId = null;
@@ -242,23 +245,49 @@ public class ViewPageFilter implements Filter
 		                    }
 		                }
 		
-		                Iterator repositorVOListIterator = repositoryVOList.iterator();
-		                while(repositorVOListIterator.hasNext())
+		                String siteNodeIdString = httpRequest.getParameter("siteNodeId");
+		            	if(siteNodeIdString != null && !siteNodeIdString.equals("") && remainingURI != null && !remainingURI.equals(""))
 		                {
-		                    RepositoryVO repositoryVO = (RepositoryVO)repositorVOListIterator.next();
-		                    logger.info("Getting node from:" + repositoryVO.getName());
-		                    
-		                    //TODO
+		                	nodeNames = splitString(remainingURI, "/");
+				            logger.info("nodeNames:" + nodeNames.length);
+				            
+				            nodeNameList = new ArrayList<String>();
+				            for(int i=0; i<nodeNames.length; i++)
+				            {
+				            	String nodeName = nodeNames[i];
+				            	if(nodeName.indexOf(".cid") == -1)
+				            	{
+				            		nodeNameList.add(nodeName);
+				            	}
+				            }
+
+		            		nodeNames = new String[nodeNameList.size()];
+		            		nodeNames = nodeNameList.toArray(nodeNames);
+		            		
 		                    DeliveryContext deliveryContext = DeliveryContext.getDeliveryContext();
-		                    siteNodeId = NodeDeliveryController.getSiteNodeIdFromPath(infoGluePrincipal, repositoryVO, nodeNames, attributeName, deliveryContext, httpSession, languageId);
-		                    if(deliveryContext.getLanguageId() != null && !deliveryContext.getLanguageId().equals(languageId))
-		                    {
-		                    	languageId = deliveryContext.getLanguageId();
-		                        httpSession.setAttribute(FilterConstants.LANGUAGE_ID, languageId);
-		                    }
-		                    
-		                    if(siteNodeId != null)
-		                        break;
+		                    siteNodeId = NodeDeliveryController.getSiteNodeIdFromBaseSiteNodeIdAndPath(infoGluePrincipal, nodeNames, attributeName, deliveryContext, httpSession, languageId, siteNodeIdString, remainingURI);
+		                }
+		                else
+		                {
+			                Iterator repositorVOListIterator = repositoryVOList.iterator();
+			                while(repositorVOListIterator.hasNext())
+			                {
+			                    RepositoryVO repositoryVO = (RepositoryVO)repositorVOListIterator.next();
+			                    logger.info("Getting node from:" + repositoryVO.getName());
+			                    
+			                    //TODO
+			                    DeliveryContext deliveryContext = DeliveryContext.getDeliveryContext();
+		                    	siteNodeId = NodeDeliveryController.getSiteNodeIdFromPath(infoGluePrincipal, repositoryVO, nodeNames, attributeName, deliveryContext, httpSession, languageId);
+			                    
+			                    if(deliveryContext.getLanguageId() != null && !deliveryContext.getLanguageId().equals(languageId))
+			                    {
+			                    	languageId = deliveryContext.getLanguageId();
+			                        httpSession.setAttribute(FilterConstants.LANGUAGE_ID, languageId);
+			                    }
+			                    
+			                    if(siteNodeId != null)
+			                        break;
+			                }
 		                }
 	                }
 	                
@@ -279,7 +308,7 @@ public class ViewPageFilter implements Filter
 	        			extraInformation += "UserAgent: " + httpRequest.getHeader("User-Agent") + "\n";
 	        			extraInformation += "User IP: " + httpRequest.getRemoteAddr();
 	        			
-	        			logger.warn("Could not map URI " + requestURI + " against any page on this website." + "\n" + extraInformation);
+	        			logger.info("Could not map URI " + requestURI + " against any page on this website." + "\n" + extraInformation);
 	                    throw new ServletException("Could not map URI " + requestURI + " against any page on this website.");	                    	
 	                }
 	                else
@@ -294,12 +323,38 @@ public class ViewPageFilter implements Filter
 	            {
 	                BaseDeliveryController.rollbackTransaction(db);
 	                logger.error("Failed to resolve siteNodeId", e);
-	                throw new ServletException(e);
+	                String systemRedirectUrl = RedirectController.getController().getSystemRedirectUrl(httpRequest);
+                    if(systemRedirectUrl != null && systemRedirectUrl.length() > 0)
+                    {
+                    	httpResponse.setStatus(301);
+                    	httpResponse.setHeader("Location", systemRedirectUrl);
+                    	httpResponse.setHeader("Connection", "close");
+	                    return;
+                    }
+                    else
+                    {
+	                	throw new ServletException(e);
+	            	} 
 	            } 
 	            catch (Exception e) 
 	            {
 	                BaseDeliveryController.rollbackTransaction(db);
-	                throw new ServletException(e);
+	                
+	                logger.error("Failed to resolve siteNodeId: " + e.getMessage());
+	                if(logger.isInfoEnabled())
+	                	logger.info("Failed to resolve siteNodeId: " + e.getMessage(), e);
+	                String systemRedirectUrl = RedirectController.getController().getSystemRedirectUrl(httpRequest);
+                    if(systemRedirectUrl != null && systemRedirectUrl.length() > 0)
+                    {
+                    	httpResponse.setStatus(301);
+                    	httpResponse.setHeader("Location", systemRedirectUrl);
+                    	httpResponse.setHeader("Connection", "close");
+	                    return;
+                    }
+                    else
+                    {
+	                	throw new ServletException(e);
+	            	}
 	            }
 	            finally
 	            {
@@ -486,7 +541,6 @@ public class ViewPageFilter implements Filter
         			}
         		}
         	}
-        	RequestAnalyser.getRequestAnalyser().registerComponentStatistics("AAAAAAA", t.getElapsedTime());
         }
 
         if (languageId != null)

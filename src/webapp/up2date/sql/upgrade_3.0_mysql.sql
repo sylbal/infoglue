@@ -36,6 +36,12 @@ ALTER TABLE cmSiteNode ADD COLUMN isDeleted TINYINT NOT NULL DEFAULT 0;
 ALTER TABLE cmContent ADD COLUMN isDeleted TINYINT NOT NULL DEFAULT 0;
 ALTER TABLE cmRepository ADD COLUMN isDeleted TINYINT NOT NULL DEFAULT 0;
 
+ALTER TABLE cmRedirect ADD COLUMN createdDateTime datetime;
+ALTER TABLE cmRedirect ADD COLUMN publishDateTime datetime;
+ALTER TABLE cmRedirect ADD COLUMN expireDateTime datetime;
+ALTER TABLE cmRedirect ADD COLUMN modifier TEXT;
+ALTER TABLE cmRedirect ADD COLUMN isUserManaged TINYINT NOT NULL DEFAULT '1';
+
 ALTER TABLE cmContentTypeDefinition ADD COLUMN parentContentTypeDefinitionId integer DEFAULT '-1';
 ALTER TABLE cmContentTypeDefinition ADD COLUMN detailPageResolverClass VARCHAR(255) DEFAULT '';
 ALTER TABLE cmContentTypeDefinition ADD COLUMN detailPageResolverData VARCHAR(1024) DEFAULT '';
@@ -53,6 +59,13 @@ create index propCategoryEntityIdIndex on cmPropertiesCategory(entityId);
 create index propCategoryCategoryIdIndex on cmPropertiesCategory(categoryId);
 create index categoryParentIdIndex on cmCategory(parentId);
 create index categoryNameIndex on cmCategory(name(100));
+
+CREATE INDEX assetKeyIndex ON cmDigitalAsset(assetKey(255));
+CREATE INDEX assetFileNameIndex ON cmDigitalAsset(assetFileName(255));
+CREATE INDEX assetFileSizeIndex ON cmDigitalAsset(assetFileSize);
+CREATE INDEX assetContentTypeIndex ON cmDigitalAsset(assetContentType);
+
+CREATE INDEX redirectUrlIndex ON cmRedirect(redirectUrl(255));
 
 ALTER TABLE cmAccessRight CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE cmAccessRightGroup CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
@@ -76,7 +89,7 @@ ALTER TABLE cmGroup CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE cmGroupContentTypeDefinition CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE cmGroupProperties CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE cmGroupPropertiesDigitalAsset CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE cmInfoglueProperties CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE cmInfoGlueProperties CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE cmInterceptionPoint CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE cmInterceptionPointInterceptor CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE cmInterceptor CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
@@ -111,10 +124,10 @@ ALTER TABLE cmUserContentTypeDefinition CONVERT TO CHARACTER SET utf8 COLLATE ut
 ALTER TABLE cmUserProperties CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE cmUserPropertiesDigitalAsset CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE cmWorkflowDefinition CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE os_currentstep CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE os_currentstep_prev CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE os_historystep CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE os_historystep_prev CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE os_propertyentry CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE os_stepids CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE os_wfentry CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE OS_CURRENTSTEP CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE OS_CURRENTSTEP_PREV CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE OS_HISTORYSTEP CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE OS_HISTORYSTEP_PREV CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE OS_PROPERTYENTRY CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE OS_STEPIDS CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE OS_WFENTRY CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;

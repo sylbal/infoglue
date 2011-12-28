@@ -35,9 +35,11 @@ import org.dom4j.io.SAXReader;
 import org.dom4j.io.XMLWriter;
 import org.infoglue.cms.controllers.kernel.impl.simple.ContentVersionController;
 import org.infoglue.cms.controllers.kernel.impl.simple.ContentVersionControllerProxy;
+import org.infoglue.cms.controllers.kernel.impl.simple.SiteNodeController;
 import org.infoglue.cms.controllers.kernel.impl.simple.SiteNodeStateController;
 import org.infoglue.cms.controllers.kernel.impl.simple.SiteNodeVersionController;
 import org.infoglue.cms.entities.content.ContentVersionVO;
+import org.infoglue.cms.entities.structure.SiteNodeVO;
 import org.infoglue.cms.entities.structure.SiteNodeVersion;
 import org.infoglue.cms.entities.structure.SiteNodeVersionVO;
 import org.infoglue.cms.exception.Bug;
@@ -69,6 +71,9 @@ public class UpdateContentVersionAction extends ViewContentVersionAction
 	private boolean concurrentModification = false;
 	private String saveAndExitURL = null;
 	
+	//Set to true if version was a state change
+	private Boolean stateChanged = false;
+
 	private ConstraintExceptionBuffer ceb;
 	
 	public UpdateContentVersionAction()
@@ -126,6 +131,9 @@ public class UpdateContentVersionAction extends ViewContentVersionAction
 			*/
 			concurrentModification = true;
 		}
+		
+		if(currentContentVersionVO == null || (this.contentVersionVO != null && currentContentVersionVO.getStateId().intValue() != this.contentVersionVO.getStateId().intValue()))
+			stateChanged = true;
 		
 		return "success";
 	}
@@ -195,12 +203,22 @@ public class UpdateContentVersionAction extends ViewContentVersionAction
 
 			this.getHttpSession().removeAttribute("CreateContentWizardInfoBean");
 		
-			System.out.println("this.getSiteNodeId():" + this.getSiteNodeId());
+			logger.info("this.getSiteNodeId():" + this.getSiteNodeId());
+			if(this.getSiteNodeId() == null)
+			{
+				logger.info("this.contentId: " + this.contentId + ":" + this.getContentId() + ":" + this.contentVersionVO);
+				SiteNodeVO metaInfoSiteNodeVO = SiteNodeController.getController().getSiteNodeVOWithMetaInfoContentId(this.contentId);
+				if(metaInfoSiteNodeVO != null)
+					this.setSiteNodeId(metaInfoSiteNodeVO.getId());
+			}
+			
 			if(this.getSiteNodeId() != null && this.contentTypeDefinitionVO.getName().equalsIgnoreCase("Meta info"))
 			{
 				SiteNodeVersionVO siteNodeVersionVO = SiteNodeVersionController.getController().getLatestActiveSiteNodeVersionVO(this.getSiteNodeId());
+				logger.info("siteNodeVersionVO: " + siteNodeVersionVO.getId());
 				SiteNodeVersion newSiteNodeVersion = SiteNodeStateController.getController().changeState(siteNodeVersionVO.getId(), SiteNodeVersionVO.WORKING_STATE, "New version", false, null, this.getInfoGluePrincipal(), null, new ArrayList());
-				System.out.println("Created new site node version:" + newSiteNodeVersion);
+				logger.info("newSiteNodeVersion: " + newSiteNodeVersion.getId());
+				logger.info("Created new site node version:" + newSiteNodeVersion);
 			}
 		}
 		catch(ConstraintException ce)
@@ -228,10 +246,10 @@ public class UpdateContentVersionAction extends ViewContentVersionAction
 			xStream.omitField(contentVersionVO.getClass(),"versionValue");
 			
 			/*
-			System.out.println("contentVersionId:" + this.contentVersionId);
-			System.out.println("contentId:" + this.contentId);
-			System.out.println("languageId:" + this.languageId);
-			System.out.println("this.contentVersionVO:" + this.contentVersionVO);
+			logger.info("contentVersionId:" + this.contentVersionId);
+			logger.info("contentId:" + this.contentId);
+			logger.info("languageId:" + this.languageId);
+			logger.info("this.contentVersionVO:" + this.contentVersionVO);
 			*/
 			ceb.throwIfNotEmpty();
 			
@@ -254,7 +272,7 @@ public class UpdateContentVersionAction extends ViewContentVersionAction
 			    xmlResult = xStream.toXML(ce);
 			}
 
-			//System.out.println("xmlResult:" + xmlResult);
+			//logger.info("xmlResult:" + xmlResult);
 			/*
 			 * Output
 			 */
@@ -265,7 +283,7 @@ public class UpdateContentVersionAction extends ViewContentVersionAction
 		{
 			e.printStackTrace();
 		}
-		System.out.println("Done standalone XML...");
+		logger.info("Done standalone XML...");
 		
 		return NONE;
 	}
@@ -442,7 +460,8 @@ public class UpdateContentVersionAction extends ViewContentVersionAction
     {
     	try
     	{
-    		SAXReader reader = new SAXReader();
+    		SAXReader reader = new SAXReader(false);
+    		reader.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
             Document document = reader.read(new java.io.ByteArrayInputStream(versionValue.getBytes("UTF-8")));
             if(document == null)
             	throw new Exception("Faulty dom... must be corrupt");
@@ -471,7 +490,7 @@ public class UpdateContentVersionAction extends ViewContentVersionAction
     	{
     		logger.error("Faulty XML from Eclipse plugin.. not accepting", e);
     		logger.warn(versionValue);
-    		System.out.println("VersionValue:" + versionValue);
+    		logger.info("VersionValue:" + versionValue);
     		throw new Exception("Faulty XML from Eclipse plugin.. not accepting");
 		}
 
@@ -526,6 +545,11 @@ public class UpdateContentVersionAction extends ViewContentVersionAction
 	public void setSaveAndExitURL(String saveAndExitURL)
 	{
 		this.saveAndExitURL = saveAndExitURL;
+	}
+
+	public Boolean getStateChanged()
+	{
+		return this.stateChanged;
 	}
 
 }

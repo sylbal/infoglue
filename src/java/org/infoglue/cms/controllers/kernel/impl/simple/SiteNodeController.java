@@ -68,6 +68,11 @@ import org.infoglue.cms.security.InfoGluePrincipal;
 import org.infoglue.cms.util.CmsPropertyHandler;
 import org.infoglue.cms.util.ConstraintExceptionBuffer;
 import org.infoglue.cms.util.XMLHelper;
+import org.infoglue.deliver.applications.databeans.DeliveryContext;
+import org.infoglue.deliver.applications.filters.FilterConstants;
+import org.infoglue.deliver.applications.filters.ViewPageFilter;
+import org.infoglue.deliver.controllers.kernel.URLComposer;
+import org.infoglue.deliver.controllers.kernel.impl.simple.LanguageDeliveryController;
 import org.infoglue.deliver.util.CacheController;
 import org.infoglue.deliver.util.Timer;
 import org.w3c.dom.Document;
@@ -122,7 +127,7 @@ public class SiteNodeController extends BaseController
 		SiteNodeVO siteNodeVO = (SiteNodeVO)CacheController.getCachedObjectFromAdvancedCache("siteNodeCache", key);
 		if(siteNodeVO != null)
 		{
-			//System.out.println("There was an cached siteNodeVO:" + siteNodeVO);
+			//logger.info("There was an cached siteNodeVO:" + siteNodeVO);
 		}
 		else
 		{
@@ -259,24 +264,24 @@ public class SiteNodeController extends BaseController
 	 * This method deletes a siteNode and also erases all the children and all versions.
 	 */
 	    
-    public void delete(Integer siteNodeId, InfoGluePrincipal infogluePrincipal) throws ConstraintException, SystemException
+    public void delete(Integer siteNodeId, boolean forceDelete, InfoGluePrincipal infogluePrincipal) throws ConstraintException, SystemException
     {
     	SiteNodeVO siteNodeVO = SiteNodeControllerProxy.getController().getSiteNodeVOWithId(siteNodeId);
     	
-    	delete(siteNodeVO, infogluePrincipal);
+    	delete(siteNodeVO, infogluePrincipal, forceDelete);
     }
     
 	/**
 	 * This method deletes a siteNode and also erases all the children and all versions.
 	 */
 	    
-    public void delete(SiteNodeVO siteNodeVO, InfoGluePrincipal infogluePrincipal) throws ConstraintException, SystemException
+    public void delete(SiteNodeVO siteNodeVO, InfoGluePrincipal infogluePrincipal, boolean forceDelete) throws ConstraintException, SystemException
     {
     	Database db = CastorDatabaseService.getDatabase();
         beginTransaction(db);
 		try
         {	
-			delete(siteNodeVO, db, infogluePrincipal);	
+			delete(siteNodeVO, db, forceDelete, infogluePrincipal);	
 			
 	    	commitTransaction(db);
         }
@@ -822,9 +827,9 @@ public class SiteNodeController extends BaseController
 	   		SQL.append("order by snv.sortOrder ASC, sn.name ASC, sn.siteNodeId DESC AS org.infoglue.cms.entities.structure.impl.simple.SmallestSiteNodeImpl");    		
     	}
 
-    	//System.out.println("SQL:" + SQL);
-    	//System.out.println("parentSiteNodeId:" + parentSiteNodeId);
-    	//System.out.println("showDeletedItems:" + showDeletedItems);
+    	//logger.info("SQL:" + SQL);
+    	//logger.info("parentSiteNodeId:" + parentSiteNodeId);
+    	//logger.info("showDeletedItems:" + showDeletedItems);
     	OQLQuery oql = db.getOQLQuery(SQL.toString());
 		oql.bind(parentSiteNodeId);
 		oql.bind(showDeletedItems);
@@ -1067,14 +1072,14 @@ public class SiteNodeController extends BaseController
             siteNode.setParentSiteNode((SiteNodeImpl)newParentSiteNode);
             
             Integer metaInfoContentId = siteNode.getMetaInfoContentId();
-            //System.out.println("metaInfoContentId:" + metaInfoContentId);
+            //logger.info("metaInfoContentId:" + metaInfoContentId);
             if(!siteNode.getRepository().getId().equals(newParentSiteNode.getRepository().getId()) && metaInfoContentId != null)
             {
             	Content metaInfoContent = ContentController.getContentController().getContentWithId(metaInfoContentId, db);
             	Content newParentContent = ContentController.getContentController().getContentWithPath(newParentSiteNode.getRepository().getId(), "Meta info folder", true, principal, db);
-            	if(metaInfoContent != null && newParentContent != null)
+                if(metaInfoContent != null && newParentContent != null)
             	{
-            		//System.out.println("Moving:" + metaInfoContent.getName() + " to " + newParentContent.getName());
+            		//logger.info("Moving:" + metaInfoContent.getName() + " to " + newParentContent.getName());
             		newParentContent.getChildren().add(metaInfoContent);
             		Content previousParentContent = metaInfoContent.getParentContent();
             		metaInfoContent.setParentContent((ContentImpl)newParentContent);
@@ -1086,6 +1091,10 @@ public class SiteNodeController extends BaseController
             
             changeRepositoryRecursive(siteNode, newParentSiteNode.getRepository());
             //siteNode.setRepository(newParentSiteNode.getRepository());
+            
+            //Test registering system redirects for the old location
+            Map<String,String> pageUrls = RedirectController.getController().getNiceURIMapBeforeMove(db, siteNode.getRepository().getId(), siteNode.getId(), principal);
+            
 			newParentSiteNode.getChildSiteNodes().add(siteNode);
 			oldParentSiteNode.getChildSiteNodes().remove(siteNode);
 			
@@ -1093,6 +1102,9 @@ public class SiteNodeController extends BaseController
             ceb.throwIfNotEmpty();
             
             commitTransaction(db);
+            
+            //Test registering system redirects for the old location
+            RedirectController.getController().createSystemRedirect(pageUrls, siteNode.getRepository().getId(), siteNode.getId(), principal);
         }
         catch(ConstraintException ce)
         {
@@ -1129,9 +1141,9 @@ public class SiteNodeController extends BaseController
             	throw new ConstraintException("SiteNode.parentSiteNodeId", "3403"); //TODO
             }
             
-            //System.out.println("siteNodeId:" + siteNodeId);
-            //System.out.println("beforeSiteNodeId:" + beforeSiteNodeId);
-            //System.out.println("direction:" + direction);
+            //logger.info("siteNodeId:" + siteNodeId);
+            //logger.info("beforeSiteNodeId:" + beforeSiteNodeId);
+            //logger.info("direction:" + direction);
             
             if(beforeSiteNodeId != null)
             {
@@ -1159,19 +1171,19 @@ public class SiteNodeController extends BaseController
 				{
 					SiteNodeVO childSiteNodeVO = childrenVOListIterator.next();
 					SiteNodeVersion latestChildSiteNodeVersion = SiteNodeVersionController.getController().getLatestActiveSiteNodeVersion(db, childSiteNodeVO.getId());
-					//System.out.println("latestChildSiteNodeVersion:" + latestChildSiteNodeVersion.getId());
+					//logger.info("latestChildSiteNodeVersion:" + latestChildSiteNodeVersion.getId());
 					Integer currentSortOrder = latestChildSiteNodeVersion.getSortOrder();
 					if(currentSortOrder.equals(oldSortOrder))
 					{
 						latestChildSiteNodeVersion = SiteNodeVersionController.getController().updateStateId(latestChildSiteNodeVersion, SiteNodeVersionVO.WORKING_STATE, "Changed sortOrder", infoGluePrincipal, db);
 						latestChildSiteNodeVersion.setSortOrder(newSortOrder);
-						//System.out.println("Changed sort order on:" + latestChildSiteNodeVersion.getId() + " into " + newSortOrder);
+						//logger.info("Changed sort order on:" + latestChildSiteNodeVersion.getId() + " into " + newSortOrder);
 					}
 					else if(currentSortOrder.equals(newSortOrder))
 					{
 						latestChildSiteNodeVersion = SiteNodeVersionController.getController().updateStateId(latestChildSiteNodeVersion, SiteNodeVersionVO.WORKING_STATE, "Changed sortOrder", infoGluePrincipal, db);
 						latestChildSiteNodeVersion.setSortOrder(oldSortOrder);
-						//System.out.println("Changed sort order on:" + latestChildSiteNodeVersion.getId() + " into " + oldSortOrder);
+						//logger.info("Changed sort order on:" + latestChildSiteNodeVersion.getId() + " into " + oldSortOrder);
 					}
 				}
             }
@@ -1204,10 +1216,10 @@ public class SiteNodeController extends BaseController
 
         try
         {
-        	//System.out.println("siteNodeId:" + siteNodeId);
+        	//logger.info("siteNodeId:" + siteNodeId);
             
             SiteNodeVersion latestSiteNodeVersion = SiteNodeVersionController.getController().getLatestActiveSiteNodeVersion(db, siteNodeId);
-            //System.out.println("latestSiteNodeVersion:" + latestSiteNodeVersion);
+            //logger.info("latestSiteNodeVersion:" + latestSiteNodeVersion);
             if(latestSiteNodeVersion != null)
 			{
         		latestSiteNodeVersion = SiteNodeVersionController.getController().updateStateId(latestSiteNodeVersion, SiteNodeVersionVO.WORKING_STATE, "Changed hidden", infoGluePrincipal, db);
@@ -1588,7 +1600,8 @@ public class SiteNodeController extends BaseController
         try
         {
         	SiteNode siteNode = getSiteNodeWithMetaInfoContentId(db, contentId);
-        	siteNodeVO = siteNode.getValueObject();
+        	if(siteNode != null)
+        		siteNodeVO = siteNode.getValueObject();
         	
             commitTransaction(db);
         }

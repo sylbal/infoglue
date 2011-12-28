@@ -50,6 +50,7 @@ import org.dom4j.Document;
 import org.dom4j.Element;
 import org.dom4j.Node;
 import org.infoglue.cms.controllers.kernel.impl.simple.CastorDatabaseService;
+import org.infoglue.cms.controllers.kernel.impl.simple.InstallationController;
 import org.infoglue.cms.io.FileHelper;
 import org.infoglue.cms.util.CmsPropertyHandler;
 import org.infoglue.cms.util.dom.DOMBuilder;
@@ -119,7 +120,7 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
 
     public Collection getKeys(String prefix, int type) throws PropertyException 
     {
-    	//System.out.println("isRecacheCall:" + isRecacheCall);
+    	//logger.info("isRecacheCall:" + isRecacheCall);
     	Map currentTypeMap = typeMap;
     	Map currentValueMap = valueMap;
     	
@@ -267,20 +268,7 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
             	currentValueMap = valueMap;
             	if(isRecacheCall)
             		currentValueMap = valueMapFallback;
-				/*
-            	if(key.indexOf("error") > -1)
-            	{
-            		if(valueMap != null)
-                		System.out.println("valueMap:" + valueMap.hashCode());
-                	if(valueMapFallback != null)
-                		System.out.println("valueMapFallback:" + valueMapFallback.hashCode());
-                	if(currentValueMap != null)
-                		System.out.println("currentValueMap:" + currentValueMap.hashCode());
 
-                	System.out.println("o in getKeys:" + o);
-            		System.out.println("Storing in:" + currentValueMap.hashCode());
-            	}
-            	*/
             	synchronized (currentValueMap) 
             	{
             		currentValueMap.put(key, o);					            		
@@ -292,7 +280,7 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
             allKeysCached = true;
             if(isRecacheCall)
             {
-            	//System.out.println("Switching valueMap from:" + valueMap.hashCode() + " --> " + currentValueMap.hashCode());
+            	//logger.info("Switching valueMap from:" + valueMap.hashCode() + " --> " + currentValueMap.hashCode());
             	typeMap = currentTypeMap;
             	valueMap = currentValueMap;
             	typeMapFallback = new HashMap();
@@ -390,7 +378,6 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
         this.password = (String) config.get("password");
         this.driverClassName = (String) config.get("driverClassName");
         this.url = (String) config.get("url");
-        //System.out.println("Whe got " + this.url + " in " + this.hashCode());
         if(this.url.equalsIgnoreCase("@database.url@"))
         	reloadConfiguration = true;
 
@@ -474,7 +461,7 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
         	conn = getConnection();
 
             String sql = "UPDATE " + tableName + " SET " + colString + " = ?, " + colDate + " = ?, " + colData + " = ?, " + colFloat + " = ?, " + colNumber + " = ?, " + colItemType + " = ? " + " WHERE " + colGlobalKey + " = ? AND " + colItemKey + " = ?";
-            //System.out.println("SQL:" + sql);
+            //logger.info("SQL:" + sql);
             PreparedStatement ps = conn.prepareStatement(sql);
             setValues(ps, type, key, value);
 
@@ -511,32 +498,21 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
 
     protected Object get(int type, String key) throws PropertyException 
     {	    	
-    	//if(key.indexOf("error") > -1)
-    	//	System.out.println("Getting value for key:" + key + ":" + type);
-
     	if(enableCache && valueMap == null && !allKeysCached)
     	{
-    		//System.out.println("Caching...");
+    		//logger.info("Caching...");
     		this.getKeys();
     	}
     	
     	if(enableCache && valueMap != null)
         {
-    		//if(key.indexOf("error") > -1)
-    		//	System.out.println("ValueMap in get:" + valueMap.hashCode());	
-	    	synchronized (valueMap) 
+    		synchronized (valueMap) 
 	    	{
 	    		Object value = valueMap.get(key);
-	    		//if(key.indexOf("error") > -1)
-	    		//	System.out.println("value:" + value);
-
-	    		//if(key.indexOf("error") > -1)
-	    		//	System.out.println("allKeysCached:" + allKeysCached);
-
 	    		if(value == null && !allKeysCached)
 	    		{
 	    			//if(key.indexOf("error") > -1)
-	    	    	//	System.out.println("Should not return... should get value");
+	    	    	//	logger.info("Should not return... should get value");
 	    		}
 	    		else
 	    		{
@@ -549,9 +525,6 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
 	    		}
 		    }
 	    }
-
-    	//if(key.indexOf("error") > -1)
-    	//	System.out.println("huh 2...");	
 
     	if(logger.isInfoEnabled())
     		logger.info("Getting value for key:" + key + ":" + type);
@@ -574,9 +547,6 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
 
             if (rs.next()) 
             {
-        		//if(key.indexOf("error") > -1)
-        		//	System.out.println("rs:" + rs);	
-
                 propertyType = rs.getInt(colItemType);
 
                 if (propertyType != type) 
@@ -630,9 +600,6 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
 
             rs.close();
             ps.close();
-
-    		//if(key.indexOf("error") > -1)
-    		//	System.out.println("o1:" + o);	
         } 
         catch (SQLException e) 
         {
@@ -659,9 +626,6 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
     		else
     			valueMap.put(key, new NullObject());  		    			
     	}
-
-    	//if(key.indexOf("error") > -1)
-    	//	System.out.println("o:" + o);
 
         return o;
     }
@@ -761,9 +725,17 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
         typeMap.put(key, new Integer(type));
     }
 
+    private static long lastErrorCheck = System.currentTimeMillis();
+    private static boolean wasDatabaseFaulty = false;
+    	
     protected Connection getConnection() throws SQLException 
     {
         Connection conn = null;
+        if((wasDatabaseFaulty || !CmsPropertyHandler.getIsValidSetup()) && (System.currentTimeMillis() - lastErrorCheck < 10000))
+        	return conn;
+
+        wasDatabaseFaulty = false;
+        
         boolean reloadingConfiguration = false;
 		
         if(reloadConfiguration)
@@ -795,7 +767,6 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
 	            {
 	            	//if(CmsPropertyHandler.getIsConfigurationFinished())
 	            		logger.error("Error setting up driver for [" + this.url + "]: " + e.getMessage());
-	                    System.out.println("Whe got " + this.url + " in " + this.hashCode());
 	            }
 	            logger.info("Done.");
 	        }
@@ -812,7 +783,16 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
 		catch (Exception ex) 
 		{
         	//if(CmsPropertyHandler.getIsConfigurationFinished())
-        		logger.error("Error connecting to [" + this.url + "]: " + ex.getMessage(), ex);
+        	//logger.error("Error connecting to [" + this.url + "]: " + ex.getMessage(), ex);
+        	logger.error("Error connecting to [" + this.url + "]: " + ex.getMessage());
+        	lastErrorCheck = System.currentTimeMillis();
+        	
+        	int reason = InstallationController.getController().getBrokenDatabaseReason();
+        	if(reason == InstallationController.DATABASE_PARAMETERS_MISSING || reason == InstallationController.DATABASE_SERVER_DOWN || reason == InstallationController.DATABASE_SERVER_MISSING_DATABASE)
+        	{
+        		wasDatabaseFaulty = true;
+        	}
+        	//ex.printStackTrace();
 		}
 		
         return conn;
@@ -893,7 +873,7 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
     		e.printStackTrace();
     	}
 		*/
-		//System.out.println("Setting to null:" + valueMap.hashCode());	
+		//logger.info("Setting to null:" + valueMap.hashCode());	
 
     	if(valueMap != null)
         {
@@ -919,7 +899,7 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
     	/*
     	try
     	{
-    		System.out.println("Cleared caches - pausing");
+    		logger.info("Cleared caches - pausing");
     		Thread.sleep(5000);
     	}
     	catch (Exception e) 
@@ -927,22 +907,22 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
     		e.printStackTrace();
 		}
     	*/
-    	//System.out.println("Recaching keys");
+    	//logger.info("Recaching keys");
     	isRecacheCall = true;
     	instance.getKeys();
-    	//System.out.println("Recached keys");
+    	//logger.info("Recached keys");
     }
 
     public void reloadConfiguration() throws Exception
     {
-    	System.out.println("Reloading configuration...");
+    	//logger.warn("Reloading configuration...");
     	String oldGlobalKey = this.globalKey;
-    	System.out.println("oldGlobalKey:" + oldGlobalKey);
+    	//logger.warn("oldGlobalKey:" + oldGlobalKey);
     	
     	DOMBuilder domBuilder = new DOMBuilder();
     	String propertySetXMLPath = CastorDatabaseService.class.getResource("/propertyset.xml").getPath();
     	String content = FileHelper.getFileAsString(new File(propertySetXMLPath));
-    	//System.out.println("propertyset.xml:\n" + content);
+    	//logger.info("propertyset.xml:\n" + content);
     	Document doc = domBuilder.getDocument(content);
     	
     	Element propertySet = (Element)doc.selectSingleNode("//propertyset[@name='jdbc']");
@@ -960,7 +940,7 @@ public class InfoGlueJDBCPropertySet extends JDBCPropertySet
             String argName = arg.attributeValue("name");
             String argValue = arg.attributeValue("value");
             argsMap.put(argName, argValue);
-            //System.out.println("" + argName + "=" + argValue);
+            //logger.info("" + argName + "=" + argValue);
         }
         
         init(argsMap, argsMap);

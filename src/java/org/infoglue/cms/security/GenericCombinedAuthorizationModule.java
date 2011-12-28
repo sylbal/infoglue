@@ -75,8 +75,6 @@ public class GenericCombinedAuthorizationModule implements AuthorizationModule, 
 	private Database transactionObject 	= null;
 
 	private List authorizationModules = new ArrayList();
-	//private AuthorizationModule mainAuthorizationModule = null;
-	//private AuthorizationModule authorizationModule = null;
 
 	private AuthorizationModule getAuthorizationModule(String authorizationModuleClassName, int index) throws SystemException
 	{
@@ -104,8 +102,6 @@ public class GenericCombinedAuthorizationModule implements AuthorizationModule, 
 			
 			if(logger.isInfoEnabled())
 				logger.info("authorizationModule:" + authorizationModule);
-			
-			//localProperties.list(System.out);
 			
 			authorizationModule.setExtraProperties(localProperties);
 			authorizationModule.setTransactionObject(this.getTransactionObject());

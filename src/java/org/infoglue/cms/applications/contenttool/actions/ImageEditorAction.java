@@ -22,6 +22,7 @@
 
 package org.infoglue.cms.applications.contenttool.actions;
 
+import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
@@ -97,7 +98,7 @@ public class ImageEditorAction extends InfoGlueAbstractAction
     {
     	if(clearHistory)
     	{
-    		System.out.println("Cleaning up all session images");
+    		logger.info("Cleaning up all session images");
     		getHttpSession().removeAttribute("imageEditorOldWorkingFiles");
     	}
     	
@@ -112,9 +113,9 @@ public class ImageEditorAction extends InfoGlueAbstractAction
 	        String filePath = DigitalAssetController.getDigitalAssetFilePath(this.digitalAssetVO.getDigitalAssetId());
 	        BufferedImage original = javax.imageio.ImageIO.read(new File(filePath));
 	
-	    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + ".png";
+	    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + getImageFileSuffix(digitalAssetVO.getAssetContentType());
 	    	File outputFile = new File(getImageEditorPath() + File.separator + workingFileName);
-			javax.imageio.ImageIO.write(original, "PNG", outputFile);
+			javax.imageio.ImageIO.write(original, getImageFileType(digitalAssetVO.getAssetContentType()), outputFile);
 		}
         
     	this.modifiedFileUrl = getImageEditorBaseUrl() + workingFileName;
@@ -134,9 +135,9 @@ public class ImageEditorAction extends InfoGlueAbstractAction
         this.contentTypeDefinitionVO = ContentController.getContentController().getContentTypeDefinition(contentVersionVO.getContentId());
 
     	workingFileName = getFirstOldWorkingFile();
-        System.out.println("workingFileName:" + workingFileName);
+        logger.info("workingFileName:" + workingFileName);
     	this.modifiedFileUrl = getImageEditorBaseUrl() + workingFileName;
-        System.out.println("this.modifiedFileUrl:" + this.modifiedFileUrl);
+        logger.info("this.modifiedFileUrl:" + this.modifiedFileUrl);
     	//logger.info("modifiedFileUrl:" + modifiedFileUrl);
     
         return "success";
@@ -153,7 +154,7 @@ public class ImageEditorAction extends InfoGlueAbstractAction
     	File file = new File(getImageEditorPath() + File.separator + workingFileName);
 		addOldWorkingFile(file);
 		
-    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + ".png";    	
+    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + getImageFileSuffix(digitalAssetVO.getAssetContentType());    	
     	File outputFile = new File(getImageEditorPath() + File.separator + workingFileName);
     	outputFile.mkdirs();
     	
@@ -164,11 +165,11 @@ public class ImageEditorAction extends InfoGlueAbstractAction
     	
     	if(keepRatio.equalsIgnoreCase("true"))
     	{
-        	Imaging.resize(file, outputFile, width, height, "PNG", true);
+        	Imaging.resize(file, outputFile, width, height, getImageFileType(digitalAssetVO.getAssetContentType()), true);
         }
     	else //We don't support it for now but when the Imaging-class do it will kick in
         {
-    		Imaging.resize(file, outputFile, width, height, "PNG", false);
+    		Imaging.resize(file, outputFile, width, height, getImageFileType(digitalAssetVO.getAssetContentType()), false);
     	}
     	
     	//logger.info("outputFile:" + outputFile.length());
@@ -189,18 +190,22 @@ public class ImageEditorAction extends InfoGlueAbstractAction
     	File file = new File(getImageEditorPath() + File.separator + workingFileName);
     	addOldWorkingFile(file);
 		
-    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + ".png";    	
+    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + getImageFileSuffix(digitalAssetVO.getAssetContentType());
     	File outputFile = new File(getImageEditorPath() + File.separator + workingFileName);
     	outputFile.mkdirs();
-    	
+    	/*
+    	String workingRealFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + getImageFileSuffix(digitalAssetVO.getAssetContentType());
+    	File outputRealFile = new File(getImageEditorPath() + File.separator + workingRealFileName);
+    	outputRealFile.mkdirs();
+		*/
     	logger.info("direction: " + direction);
     	logger.info("degrees: " + degrees);
     	if(direction.equalsIgnoreCase("ccw"))
     		degrees = -degrees;
     		
     	BufferedImage original = javax.imageio.ImageIO.read(file);
-
-    	AffineTransform transform = new AffineTransform();
+    	    	
+   		AffineTransform transform = new AffineTransform();
     	int diff = original.getWidth() - original.getHeight();
     	if(diff > 0)
     		transform.translate(0, diff / 2);
@@ -212,7 +217,17 @@ public class ImageEditorAction extends InfoGlueAbstractAction
         AffineTransformOp op = new AffineTransformOp(transform, AffineTransformOp.TYPE_BILINEAR);
         BufferedImage image = op.filter(original, null);
         
-    	javax.imageio.ImageIO.write(image, "PNG", outputFile);
+        if(getImageFileType(digitalAssetVO.getAssetContentType()).equals("JPG"))
+        {
+	    	BufferedImage out2 = new BufferedImage (image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+	
+	   		Graphics2D g = out2.createGraphics();
+	   		g.drawRenderedImage(image, null);
+	   		
+	   		image = out2;
+        }
+        
+    	javax.imageio.ImageIO.write(image, getImageFileType(digitalAssetVO.getAssetContentType()), outputFile);
     	
     	//logger.info("outputFile:" + outputFile.length());
 		this.modifiedFileUrl = getImageEditorBaseUrl() + workingFileName;
@@ -239,9 +254,9 @@ public class ImageEditorAction extends InfoGlueAbstractAction
 
     	//BufferedImage image = imaging.crop(original, xpos1, ypos1, xpos2 - xpos1, ypos2 - ypos1);
 
-    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + ".png";    	
+    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + getImageFileSuffix(digitalAssetVO.getAssetContentType());    	
     	File outputFile = new File(getImageEditorPath() + File.separator + workingFileName);
-    	javax.imageio.ImageIO.write(image, "PNG", outputFile);
+    	javax.imageio.ImageIO.write(image, getImageFileType(digitalAssetVO.getAssetContentType()), outputFile);
 
     	//logger.info("outputFile:" + outputFile.length());
 		this.modifiedFileUrl = getImageEditorBaseUrl() + workingFileName;
@@ -260,14 +275,14 @@ public class ImageEditorAction extends InfoGlueAbstractAction
 
     	File file = new File(getImageEditorPath() + File.separator + workingFileName);
     	//logger.info("saving file:" + file.getAbsolutePath());
-    	//System.out.println("file:" + file.exists() + "\n" + file.getAbsolutePath());
+    	//logger.info("file:" + file.exists() + "\n" + file.getAbsolutePath());
 
     	if(file.exists())
     	{
         	String contentType = digitalAssetVO.getAssetContentType();
 	    	this.digitalAssetVO.setAssetFileSize(new Integer(new Long(file.length()).intValue()));
-	    	//System.out.println("Setting file size to:" + new Integer(new Long(file.length()).intValue()));
-	    	this.digitalAssetVO.setAssetContentType("image/png");
+	    	//logger.info("Setting file size to:" + new Integer(new Long(file.length()).intValue()));
+	    	this.digitalAssetVO.setAssetContentType(digitalAssetVO.getAssetContentType());
 			InputStream is = new FileInputStream(file);
 			
 			if(this.contentTypeDefinitionId != null && digitalAssetVO.getAssetKey() != null)
@@ -370,7 +385,7 @@ public class ImageEditorAction extends InfoGlueAbstractAction
 			if(is != null)
 				is.close();
 			
-	    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + ".png";
+	    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + getImageFileSuffix(digitalAssetVO.getAssetContentType());
 	    	if(CmsPropertyHandler.getEnableDiskAssets().equals("true") && file.exists())
 	    	{
 				String folderName = "" + (digitalAssetVO.getDigitalAssetId().intValue() / 1000);
@@ -519,7 +534,7 @@ public class ImageEditorAction extends InfoGlueAbstractAction
 		if(is != null)
 			is.close();
 		
-    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + ".png";
+    	workingFileName = "imageEditorWK_" + System.currentTimeMillis() + "_" + this.getInfoGluePrincipal().getName().hashCode() + "_" + digitalAssetVO.getDigitalAssetId() + getImageFileSuffix(digitalAssetVO.getAssetContentType());
     	if(CmsPropertyHandler.getEnableDiskAssets().equals("true") && file.exists())
     	{
 			String folderName = "" + (digitalAssetVO.getDigitalAssetId().intValue() / 1000);
@@ -554,11 +569,11 @@ public class ImageEditorAction extends InfoGlueAbstractAction
     		getHttpSession().setAttribute("imageEditorOldWorkingFiles", imageEditorOldWorkingFiles);
     	}
     	
-    	System.out.println("Adding " + oldWorkingFile.getName());
+    	logger.info("Adding " + oldWorkingFile.getName());
     	imageEditorOldWorkingFiles.add(0, oldWorkingFile.getName());
     	
     	List imageEditorOldWorkingFiles2 = (List)getHttpSession().getAttribute("imageEditorOldWorkingFiles");
-    	System.out.println("imageEditorOldWorkingFiles2: " + imageEditorOldWorkingFiles2.size());
+    	logger.info("imageEditorOldWorkingFiles2: " + imageEditorOldWorkingFiles2.size());
 
     }
 
@@ -571,13 +586,13 @@ public class ImageEditorAction extends InfoGlueAbstractAction
     	List imageEditorOldWorkingFiles = (List)getHttpSession().getAttribute("imageEditorOldWorkingFiles");
     	if(imageEditorOldWorkingFiles != null)
     	{
-    		System.out.println("imageEditorOldWorkingFiles: " + imageEditorOldWorkingFiles.size());
+    		logger.info("imageEditorOldWorkingFiles: " + imageEditorOldWorkingFiles.size());
         	oldWorkingFileName = (String)imageEditorOldWorkingFiles.get(0);
-    		System.out.println("oldWorkingFileName:" + oldWorkingFileName);
+    		logger.info("oldWorkingFileName:" + oldWorkingFileName);
     		imageEditorOldWorkingFiles.remove(0);
     	}
     	else
-    		System.out.println("imageEditorOldWorkingFiles was null");
+    		logger.info("imageEditorOldWorkingFiles was null");
         
     	return oldWorkingFileName;
     }
@@ -635,6 +650,26 @@ public class ImageEditorAction extends InfoGlueAbstractAction
     	return CmsPropertyHandler.getWebServerAddress() + "/" + CmsPropertyHandler.getDigitalAssetBaseUrl() + "/imageEditor/";
     }
 
+    private String getImageFileSuffix(String contentType)
+    {
+    	if(contentType == null || contentType.equals(""))
+    		return ".jpg";
+    	else if(contentType.equals("image/png") || contentType.equals("image/gif"))
+    		return ".png";
+    	else
+    		return ".jpg";
+    }
+    
+    private String getImageFileType(String contentType)
+    {
+    	if(contentType == null || contentType.equals(""))
+    		return "JPG";
+    	else if(contentType.equals("image/png") || contentType.equals("image/gif"))
+    		return "PNG";
+    	else
+    		return "JPG";
+    }
+    
     public void setDigitalAssetKey(String digitalAssetKey)
 	{
 		this.digitalAssetKey = digitalAssetKey;

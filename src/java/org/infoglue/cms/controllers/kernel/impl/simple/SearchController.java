@@ -525,35 +525,35 @@ public class SearchController extends BaseController
 				BaseEntityVO entityVO = ContentController.getContentController().getContentVOWithId(entityId, db);
 				matchingEntities.add(entityVO);
 			}
-			catch (Exception e) { System.out.println("No entity found.."); }
+			catch (Exception e) { logger.error("No entity found.."); }
 
 			try
 			{
 				BaseEntityVO entityVO = ContentVersionController.getContentVersionController().getContentVersionVOWithId(entityId, db);
 				matchingEntities.add(entityVO);
 			}
-			catch (Exception e) { System.out.println("No entity found.."); }
+			catch (Exception e) { logger.error("No entity found.."); }
 
 			try
 			{
 				BaseEntityVO entityVO = DigitalAssetController.getController().getDigitalAssetVOWithId(entityId, db);
 				matchingEntities.add(entityVO);
 			}
-			catch (Exception e) { System.out.println("No entity found.."); }
+			catch (Exception e) { logger.error("No entity found.."); }
 
 			try
 			{
 				BaseEntityVO entityVO = SiteNodeController.getController().getSiteNodeVOWithId(entityId, db);
 				matchingEntities.add(entityVO);
 			}
-			catch (Exception e) { System.out.println("No entity found.."); }
+			catch (Exception e) { logger.error("No entity found.."); }
 
 			try
 			{
 				BaseEntityVO entityVO = SiteNodeVersionController.getController().getSiteNodeVersionVOWithId(entityId, db);
 				matchingEntities.add(entityVO);
 			}
-			catch (Exception e) { System.out.println("No entity found.."); }
+			catch (Exception e) { logger.error("No entity found.."); }
 			
 			commitTransaction(db);
 		}
@@ -675,14 +675,12 @@ public class SearchController extends BaseController
 			{
 				for(int i=0; i<assetTypeFilterArray.length; i++)
 				{
-					//System.out.println("Binding assetType:" + assetTypeFilterArray[i]);
 					assetOQL.bind(assetTypeFilterArray[i]);
 				}
 			}
 			
 			for(int i=0; i<repositoryId.length; i++)
 			{
-				//System.out.println("Binding repId:" + repositoryId[i]);
 				assetOQL.bind(repositoryId[i]);
 			}
 			
@@ -714,7 +712,7 @@ public class SearchController extends BaseController
    	}
 
    	
-   	public static int replaceString(String searchString, String replaceString, String[] contentVersionIds, InfoGluePrincipal infoGluePrincipal)throws SystemException, Bug
+   	public static int replaceString(String searchString, String replaceString, Boolean caseSensitive, String[] contentVersionIds, InfoGluePrincipal infoGluePrincipal)throws SystemException, Bug
    	{
 		int replacements = 0;
 		
@@ -728,7 +726,6 @@ public class SearchController extends BaseController
 			{
 			    String contentVersionId = contentVersionIds[i];
 			    logger.info("contentVersionId:" + contentVersionId);
-			    //System.out.println("contentVersionId:" + contentVersionId);
 			    ContentVersion contentVersion = ContentVersionController.getContentVersionController().getContentVersionWithId(new Integer(contentVersionIds[i]), db);
 			    if(contentVersion.getStateId().intValue() != ContentVersionVO.WORKING_STATE.intValue())
 			    {
@@ -738,8 +735,15 @@ public class SearchController extends BaseController
 			    }
 			    
 			    String value = contentVersion.getVersionValue();
-			    value = value.replaceAll(searchString, replaceString);
 			    
+			    System.out.println("searchString:" + searchString);
+			    
+			    if(!caseSensitive)			    
+			    	searchString = "(?i)" + searchString;
+			    System.out.println("searchString:" + searchString);
+			    
+			    value = value.replaceAll(searchString, replaceString);
+			    	
 			    contentVersion.setVersionValue(value);
 
 			    replacements++;
@@ -903,7 +907,6 @@ public class SearchController extends BaseController
 
 			Query query = MultiFieldQueryParser.parse(queries, fields, flags, analyzer);
 			logger.info("Searching for: " + query.toString());
-			//System.out.println("Searching for: " + query.toString());
 	
 			Hits hits = searcher.search(query);
 	

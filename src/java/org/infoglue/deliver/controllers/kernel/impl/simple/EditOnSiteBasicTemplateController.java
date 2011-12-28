@@ -65,18 +65,21 @@ public class EditOnSiteBasicTemplateController extends BasicTemplateController
 			ContentTypeAttribute contentTypeAttribute = null;
 			
 			ContentVO contentVO = this.getContent(contentId);
-			ContentTypeDefinitionVO contentTypeDefinitionVO = getContentTypeDefinitionVO(contentId);
-			Collection attributes = this.getContentTypeDefinitionAttributes(contentTypeDefinitionVO.getSchemaValue());
-			Iterator attributesIterator = attributes.iterator();
-			while(attributesIterator.hasNext())
+			if(contentVO.getContentTypeDefinitionId() != null)
 			{
-				
-				ContentTypeAttribute contentTypeAttributeCandidate = (ContentTypeAttribute)attributesIterator.next();
-				if(contentTypeAttributeCandidate.getName().equals(attributeName))
+				ContentTypeDefinitionVO contentTypeDefinitionVO = getContentTypeDefinitionVO(contentId);
+				Collection attributes = this.getContentTypeDefinitionAttributes(contentTypeDefinitionVO.getSchemaValue());
+				Iterator attributesIterator = attributes.iterator();
+				while(attributesIterator.hasNext())
 				{
-					contentTypeAttribute = contentTypeAttributeCandidate;
-					break;
-				}
+					
+					ContentTypeAttribute contentTypeAttributeCandidate = (ContentTypeAttribute)attributesIterator.next();
+					if(contentTypeAttributeCandidate.getName().equals(attributeName))
+					{
+						contentTypeAttribute = contentTypeAttributeCandidate;
+						break;
+					}
+				}				
 			}
 			
 			String className = "";
@@ -250,7 +253,7 @@ public class EditOnSiteBasicTemplateController extends BasicTemplateController
      */
 	public String getContentAttribute(String contentBindningName, String attributeName, boolean clean) 
 	{				
-       return  super.getContentAttribute(contentBindningName, attributeName);
+       return super.getContentAttribute(contentBindningName, attributeName);
 	}
 
 	/**
@@ -480,9 +483,31 @@ public class EditOnSiteBasicTemplateController extends BasicTemplateController
 	    }
 	    
 	    return attributeValue;
-		
 	}
 
+	/**
+	 * This method is just a dummy method used to ensure that we can ensure to not get a decorated attribute
+	 * value if OnSiteEdit is on.
+	 */
+	 
+	public String getEscapedParsedContentAttribute(Integer contentId, Integer languageId, String attributeName, boolean clean) 
+	{		
+	    String attributeValue = "";
+	    
+	    if(clean)
+	    {
+	        attributeValue = super.getEscapedParsedContentAttribute(contentId, languageId, attributeName);
+	    }
+	    else
+	    {
+	        attributeValue = super.getEscapedParsedContentAttribute(contentId, languageId, attributeName);
+	        attributeValue = decorateTag(contentId, languageId, attributeName, attributeValue);
+	    }
+	    
+	    return attributeValue;
+		
+	}
+	
 	/**
 	 * This method deliveres a String with the content-attribute asked for after it has been parsed and all special tags have been converted.
 	 * The attribute is fetched from the specified content.

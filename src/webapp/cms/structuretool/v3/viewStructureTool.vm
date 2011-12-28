@@ -92,22 +92,41 @@
 	   		window.onresize = function() {
 	   			resize(false);
    			}
-
+			
+			$("#toolsColumn").resizable({ handles: 'e', stop: function(event, ui) { resize(false); } });
+			
 			$("#workIframe").load(function() {
-	
-				//alert("Doc:" + $("#workIframe").get(0).contentDocument.location.href);
-				$($("#workIframe").get(0).contentDocument).mouseup(function(){
-					//alert("Dropped component maybe");
-					//emptyDragHTML();
-					$("#menuOverlayDiv").hide();
-				});
-	
+
+				try
+				{
+					//alert("Doc1:" + document.getElementById("workIframe").src);
+					//alert("Doc2:" + $("#workIframe").get(0).contentDocument.location.href);
+					$($("#workIframe").get(0).contentDocument).mouseup(function(){
+						//alert("Dropped component maybe");
+						//emptyDragHTML();
+						$("#menuOverlayDiv").hide();
+					});
+				}
+				catch(e)
+				{
+					//alert("Error:" + e);
+				}
+				
 				//alert("Just loaded:" + $("#workIframe").get(0).contentDocument.location.href);
 				try
 				{
 					if(refreshTopToolBar)
 					{
-						var url = $("#workIframe").get(0).contentDocument.location.href;
+						var url = document.getElementById("workIframe").src;
+						try
+						{	
+							url = $("#workIframe").get(0).contentDocument.location.href;
+						}
+						catch(e)
+						{
+							//alert("Error:" + e);
+						}
+						
 						//alert("url:" + url);
 						if(url.indexOf("siteNodeId=") > -1)
 						{
@@ -115,6 +134,17 @@
 							//alert("loadedSiteNodeId:" + loadedSiteNodeId + ":" + currentRepositoryId);
 							refreshTopToolBar('tool.structuretool.siteNodeComponentsHeader', 'tool.structuretool.siteNodeComponentsHeader', 'siteNodeId=' + loadedSiteNodeId, -1, -1, -1);
 							syncWithTree(loadedSiteNodeId, currentRepositoryId, "treeIframe");
+							
+							var stateChanged = getRequestParameter(url, "stateChanged");
+							//alert(loadedSiteNodeId + ":" + stateChanged);
+							if(stateChanged == "true")
+							{
+								try
+								{
+									refreshPage(loadedSiteNodeId, 1, loadedSiteNodeId);
+								}
+								catch(e) {alert("e:" + e);}
+							}
 						}
 					}
 				}
@@ -124,12 +154,18 @@
 				}
 			});
 
-
 			#set($rootSiteNode = $this.getRepositoryRootSiteNode($repositoryId))
-			openUrlInWorkArea("ViewSiteNode!V3.action?siteNodeId=$rootSiteNode.id&repositoryId=$repositoryId");
-				
+			#if(!$rootSiteNode)
+				//alert("No sitenode created yet...");
+				jQuery.get("ViewSiteNode!V3.action?siteNodeId=&repositoryId=$repositoryId", function(data) {
+					//alert('Reloaded menu');
+					setTimeout("document.location.reload();", 500);
+					});
+			#else
+				openUrlInWorkArea("ViewSiteNode!V3.action?siteNodeId=$rootSiteNode.id&repositoryId=$repositoryId");
+			#end
 		});
-		
+	
 		function changeRepository(selectBox)
 		{
 			document.location.href = "ViewStructureTool!V3.action?repositoryId=" + selectBox.value;

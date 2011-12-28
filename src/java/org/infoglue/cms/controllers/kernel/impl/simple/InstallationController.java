@@ -24,11 +24,9 @@
 package org.infoglue.cms.controllers.kernel.impl.simple;
 
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStreamReader;
+import java.net.ConnectException;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -37,13 +35,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.StringTokenizer;
 
 import javax.servlet.http.HttpServletRequest;
@@ -53,36 +49,20 @@ import oracle.sql.BLOB;
 import oracle.sql.CLOB;
 
 import org.apache.log4j.Logger;
-import org.apache.poi.hssf.record.formula.Ptg;
 import org.dom4j.Document;
 import org.dom4j.Element;
 import org.exolab.castor.jdo.Database;
-import org.exolab.castor.jdo.OQLQuery;
-import org.exolab.castor.jdo.QueryResults;
 import org.exolab.castor.mapping.Mapping;
+import org.infoglue.cms.applications.common.VisualFormatter;
 import org.infoglue.cms.entities.content.Content;
 import org.infoglue.cms.entities.kernel.BaseEntityVO;
-import org.infoglue.cms.entities.management.InterceptionPoint;
-import org.infoglue.cms.entities.management.Interceptor;
-import org.infoglue.cms.entities.management.InterceptorVO;
-import org.infoglue.cms.entities.management.impl.simple.InterceptorImpl;
-import org.infoglue.cms.exception.Bug;
-import org.infoglue.cms.exception.ConstraintException;
 import org.infoglue.cms.exception.SystemException;
 import org.infoglue.cms.io.FileHelper;
 import org.infoglue.cms.security.InfoGlueAuthenticationFilter;
 import org.infoglue.cms.util.CmsPropertyHandler;
-import org.infoglue.cms.util.ConstraintExceptionBuffer;
-import org.infoglue.cms.util.FileUploadHelper;
 import org.infoglue.cms.util.dom.DOMBuilder;
 import org.infoglue.cms.util.workflow.InfoGlueJDBCPropertySet;
 import org.infoglue.deliver.util.CacheController;
-import org.jfree.util.Log;
-
-import com.opensymphony.module.propertyset.PropertySet;
-import com.opensymphony.module.propertyset.PropertySetManager;
-
-import webwork.action.ActionContext;
 
 /**
  * This class is a helper class for all installation-related actions
@@ -117,7 +97,10 @@ public class InstallationController extends BaseController
 		} 
 		catch (Exception e) 
 		{
-			e.printStackTrace();
+			logger.info("--------------------------------------------------");
+			logger.info("Error:" + e.getMessage());
+			logger.info("--------------------------------------------------");
+			//e.printStackTrace();
 			rollbackTransaction(db);
 			throw new SystemException(e.getMessage());
 		}
@@ -186,7 +169,7 @@ public class InstallationController extends BaseController
 			rs.next();
 			
 			String versionValue = rs.getString("value");
-			System.out.println("versionValue:" + versionValue);
+			logger.info("versionValue:" + versionValue);
 			if(versionValue.equals("3.0"))
 				return "3.0";
 	    }
@@ -238,7 +221,7 @@ public class InstallationController extends BaseController
 			for(int i=1; i<=rs.getMetaData().getColumnCount(); i++)
 			{
 				String columnName = rs.getMetaData().getColumnName(i);
-				System.out.println("columnName:" + columnName);
+				logger.info("columnName:" + columnName);
 				if(columnName.equalsIgnoreCase("forceProtocolChange"))
 					return "2.9.8.7";
 			}
@@ -414,6 +397,21 @@ public class InstallationController extends BaseController
 		return completeSQL;
 	}
 	
+	public String getScript() throws Exception
+	{
+		String dbProvider = getJDBCEngine();
+		
+		String coreScript = FileHelper.getFileAsString(new File(CmsPropertyHandler.getSQLUpgradePath() + File.separator + "infoglue_core_schema_" + dbProvider + ".sql"));
+		String initialDataScript = FileHelper.getFileAsString(new File(CmsPropertyHandler.getSQLUpgradePath() + File.separator + "infoglue_initial_data_" + dbProvider + ".sql"));
+		
+		String script = coreScript + "\n" + initialDataScript;
+		script = script.replaceAll("#endquery", "");
+		VisualFormatter formatter = new VisualFormatter();
+		script = formatter.escapeHTML(script);
+		
+		return script;
+	}
+
 	public String getScript(String dbProvider, String version) throws Exception
 	{
 		String script = FileHelper.getFileAsString(new File(CmsPropertyHandler.getSQLUpgradePath() + File.separator + "upgrade_" + version + "_" + dbProvider + ".sql"));
@@ -428,9 +426,9 @@ public class InstallationController extends BaseController
 	public boolean validateApplicationFile() throws Exception
 	{
 		String cmsFilePath = CastorDatabaseService.class.getResource("/" + CmsPropertyHandler.getApplicationName() + ".properties").getPath();
-		//System.out.println("cmsFilePath:" + cmsFilePath);
+		//logger.info("cmsFilePath:" + cmsFilePath);
 		String contents = FileHelper.getFileAsString(new File(cmsFilePath));
-		//System.out.println("contents:" + contents.substring(0, 200));
+		//logger.info("contents:" + contents.substring(0, 200));
 		
 	    if(contents.indexOf("configured=true") > -1 || contents.indexOf("databaseEngine=@database.driver.engine@") == -1)
 	    	return true;
@@ -616,7 +614,7 @@ public class InstallationController extends BaseController
 		contentsDeliver = contentsDeliver.replaceAll("@recacheUrl@", "");
 		contentsDeliver = contentsDeliver.replaceAll("@useUpdateSecurity@", "true");
 		contentsDeliver = contentsDeliver.replaceAll("@forceImportTagFileCaching@", "false");
-		contentsDeliver = contentsDeliver.replaceAll("@operatingMode.deliver@", "0");
+		contentsDeliver = contentsDeliver.replaceAll("@operatingMode.deliver@", operatingMode);
 
 		if(CmsPropertyHandler.getApplicationName().equalsIgnoreCase("cms"))
 		{
@@ -725,7 +723,7 @@ public class InstallationController extends BaseController
 
 	}
 
-	private String getJDBCEngine() throws Exception
+	public String getJDBCEngine() throws Exception
 	{
 		String contents = FileHelper.getStreamAsString(CastorDatabaseService.class.getResourceAsStream("/database.xml"));
 		if(logger.isInfoEnabled())
@@ -742,19 +740,121 @@ public class InstallationController extends BaseController
 		return "";
 	}
 
-	private String getJDBCParamFromCastorXML(String xpath) throws Exception
+	public String getJDBCParamFromCastorXML(String xpath) throws Exception
 	{
 		String contents = FileHelper.getStreamAsString(CastorDatabaseService.class.getResourceAsStream("/database.xml"));
 		if(logger.isInfoEnabled())
 			logger.info("contents:" + contents);
 		DOMBuilder domBuilder = new DOMBuilder();
-		Document doc = domBuilder.getDocument(contents);
+		Document doc = domBuilder.getDocument(contents, false);
 		
 		Element element = (Element)doc.selectSingleNode(xpath);
 		if(element != null)
 			return element.attributeValue("value");
 			
 		return "";
+	}
+
+	public void updateDatabaseFromExisting(String createDatabase, String addExampleRepositories, String dbUser, String dbPassword, HttpSession session) throws Exception 
+	{
+		int reason = getBrokenDatabaseReason();
+		logger.info("reason:" + reason);
+		
+		String dbProvider = getJDBCEngine();
+		
+		if(dbProvider.equals("") || 
+		   (createDatabase.equalsIgnoreCase("true") && (
+			dbUser.equals("") || 
+		    dbPassword.equals(""))))
+		{
+			throw new Exception("Mandatory field(s) missing");
+		}
+
+		String jdbcDriverName = getJDBCParamFromCastorXML("//param[@name='driver-class-name']");
+		String jdbcURL = getJDBCParamFromCastorXML("//param[@name='url']");
+		String igUser = getJDBCParamFromCastorXML("//param[@name='username']");
+		String igPassword = getJDBCParamFromCastorXML("//param[@name='password']");
+
+		String dbName = getDBName(jdbcURL, dbProvider);
+		String dbServer = getDBServer(jdbcURL, dbProvider);
+		String dbPort = getDBPort(jdbcURL, dbProvider);
+		String dbInstance = getDBInstance(jdbcURL, dbProvider);
+		logger.info("dbName:" + dbName);
+		logger.info("dbServer:" + dbServer);
+		logger.info("dbPort:" + dbPort);
+		logger.info("dbInstance:" + dbInstance);
+		//String databaseMappingFile = getDatabaseMappingFile(dbProvider);
+		
+		if(!createDatabase.equalsIgnoreCase("true"))
+			validateConnection(jdbcDriverName, jdbcURL, igUser, igPassword);
+
+		if(createDatabase.equalsIgnoreCase("true"))
+			createDatabaseAndUsers(jdbcDriverName, dbProvider, dbName, dbServer, dbPort, dbInstance, dbUser, dbPassword, igUser, igPassword, reason);
+				
+		CastorDatabaseService.reconnectDatabase();
+		InfoGlueJDBCPropertySet.initReloadConfiguration();
+
+		if(addExampleRepositories.equalsIgnoreCase("true"))
+			createSampleSites();
+	}
+	
+	private String getDBInstance(String jdbcURL, String dbProvider) 
+	{
+		return null;
+		/*
+		String dbPort = "";
+		//jdbc:mysql://localhost:3307/infoglue333?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8
+		if(dbProvider.equals("mysql"))
+			dbPort = jdbcURL.substring(jdbcURL.indexOf(":", 12), jdbcURL.indexOf("/", 13));
+		if(dbProvider.equals("mssqlserver"))
+			dbPort = jdbcURL.substring(jdbcURL.indexOf(":", 12), jdbcURL.indexOf("/", 13));
+
+		logger.info("dbPort:" + dbPort);
+		return dbPort;
+		*/
+	}
+
+	private String getDBPort(String jdbcURL, String dbProvider) 
+	{
+		String dbPort = "";
+		//jdbc:mysql://localhost:3307/infoglue333?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8
+		if(dbProvider.equals("mysql"))
+			dbPort = jdbcURL.substring(jdbcURL.indexOf(":", 12) + 1, jdbcURL.indexOf("/", 13));
+		if(dbProvider.equals("mssqlserver"))
+			dbPort = jdbcURL.substring(jdbcURL.indexOf(":", 12) + 1, jdbcURL.indexOf("/", 13));
+
+		logger.info("dbPort:" + dbPort);
+		return dbPort;
+	}
+
+	private String getDBServer(String jdbcURL, String dbProvider) 
+	{
+		String dbServer = "";
+		//jdbc:mysql://localhost:3307/infoglue333?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8
+		if(dbProvider.equals("mysql"))
+			dbServer = jdbcURL.substring(jdbcURL.indexOf("://") + 3, jdbcURL.indexOf(":", 12));
+		if(dbProvider.equals("mssqlserver"))
+			dbServer = jdbcURL.substring(jdbcURL.indexOf("://") + 3, jdbcURL.indexOf(":", 12));
+
+		logger.info("dbServer:" + dbServer);
+		return dbServer;
+	}
+
+	private String getDBName(String jdbcURL, String dbProvider) 
+	{
+		String dbName = "";
+		int endIndex = jdbcURL.indexOf("?");
+		if(endIndex == -1)
+			endIndex = jdbcURL.length() - 1;
+		
+		//jdbc:mysql://localhost:3307/infoglue333?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8
+		if(dbProvider.equals("mysql"))
+			dbName = jdbcURL.substring(jdbcURL.lastIndexOf("/") + 1, endIndex);
+		if(dbProvider.equals("mssqlserver"))
+			dbName = jdbcURL.substring(jdbcURL.lastIndexOf("/") + 1, endIndex);
+
+		logger.info("dbName:" + dbName);
+		return dbName;
 	}
 
 	public void updateDatabase(String dbProvider, String dbName, String dbServer, String dbPort, String dbInstance, String createDatabase, String addExampleRepositories, String dbUser, String dbPassword, String igUser, String igPassword, HttpSession session) throws Exception 
@@ -783,11 +883,11 @@ public class InstallationController extends BaseController
 				igUser.equals("") || 
 				igPassword.equals(""))
 			{
-				System.out.println("dbProvider:" + dbProvider);
-				System.out.println("dbServer:" + dbServer);
-				System.out.println("dbPort:" + dbPort);
-				System.out.println("igUser:" + igUser);
-				System.out.println("igPassword:" + igPassword);
+				logger.info("dbProvider:" + dbProvider);
+				logger.info("dbServer:" + dbServer);
+				logger.info("dbPort:" + dbPort);
+				logger.info("igUser:" + igUser);
+				logger.info("igPassword:" + igPassword);
 				throw new Exception("Mandatory field(s) missing");
 			}
 		}
@@ -803,7 +903,7 @@ public class InstallationController extends BaseController
 		if(logger.isInfoEnabled())
 			logger.info("createDatabase:" + createDatabase);
 		if(createDatabase.equalsIgnoreCase("true"))
-			createDatabaseAndUsers(jdbcDriverName, jdbcURL, dbProvider, dbName, dbServer, dbPort, dbInstance, dbUser, dbPassword, igUser, igPassword);
+			createDatabaseAndUsers(jdbcDriverName, dbProvider, dbName, dbServer, dbPort, dbInstance, dbUser, dbPassword, igUser, igPassword, -1);
 		
 		//if(true)
 		//	return;
@@ -993,7 +1093,7 @@ public class InstallationController extends BaseController
 		//issueCommand(conn, "select count(*) from user");
 	}
 
-	private void createDatabaseAndUsers(String jdbcDriverName, String jdbcURL, String dbProvider, String dbName, String dbServer, String dbPort, String dbInstance, String dbUser, String dbPassword, String igUser, String igPassword) throws Exception 
+	private void createDatabaseAndUsers(String jdbcDriverName, String dbProvider, String dbName, String dbServer, String dbPort, String dbInstance, String dbUser, String dbPassword, String igUser, String igPassword, int reason) throws Exception 
 	{
 		if(dbProvider.equalsIgnoreCase("mysql"))
 		{
@@ -1004,10 +1104,18 @@ public class InstallationController extends BaseController
 			if(logger.isInfoEnabled())
 				logger.info("Efter....");
 			
-			issueCommand(getConnection(jdbcDriverName, mysqlJdbcURL, dbUser, dbPassword), "CREATE DATABASE " + dbName + ";");
-			createUsersMYSQL(jdbcDriverName, dbServer, dbPort, dbUser, dbPassword, dbName, igUser, igPassword);
-			createTables(jdbcDriverName, mysqlJdbcIGURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
-			createInitialData(jdbcDriverName, mysqlJdbcIGURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
+			if(reason == DATABASE_SERVER_MISSING_DATABASE_TABLES)
+			{
+				createTables(jdbcDriverName, mysqlJdbcIGURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
+				createInitialData(jdbcDriverName, mysqlJdbcIGURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
+			}
+			else
+			{
+				issueCommand(getConnection(jdbcDriverName, mysqlJdbcURL, dbUser, dbPassword), "CREATE DATABASE " + dbName + ";");
+				createUsersMYSQL(jdbcDriverName, dbServer, dbPort, dbUser, dbPassword, dbName, igUser, igPassword);
+				createTables(jdbcDriverName, mysqlJdbcIGURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
+				createInitialData(jdbcDriverName, mysqlJdbcIGURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
+			}
 		}
 		else if(dbProvider.equalsIgnoreCase("oracle"))
 		{
@@ -1025,36 +1133,44 @@ public class InstallationController extends BaseController
 
 			validateConnection(jdbcDriverName, sqlServerJdbcURL, dbUser, dbPassword);
 			
-			try
+			if(reason == DATABASE_SERVER_MISSING_DATABASE_TABLES)
 			{
-				Connection conn = getConnection(jdbcDriverName, sqlServerIGJdbcURL, dbUser, dbPassword);
-				
-			    try
-			    {
-			        String sql = "SELECT * FROM cmSiteNodeVersion";
-			        if(dbProvider.equalsIgnoreCase("oracle") || dbProvider.equalsIgnoreCase("db2"))
-			            sql = "SELECT * FROM cmSiNoVer";
-			        
-			        PreparedStatement pstmt = conn.prepareStatement(sql);
-					ResultSet rs = pstmt.executeQuery();
-					rs.next();
+				createTables(jdbcDriverName, sqlServerIGJdbcURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
+				createInitialData(jdbcDriverName, sqlServerIGJdbcURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
+			}
+			else
+			{
+				try
+				{
+					Connection conn = getConnection(jdbcDriverName, sqlServerIGJdbcURL, dbUser, dbPassword);
 					
-					rs.getString("isHidden"); //If this throws exception then it's older than 2.3
-			    }
-			    catch(Exception e)
-			    {
-			        e.printStackTrace();
-			    }
+				    try
+				    {
+				        String sql = "SELECT * FROM cmSiteNodeVersion";
+				        if(dbProvider.equalsIgnoreCase("oracle") || dbProvider.equalsIgnoreCase("db2"))
+				            sql = "SELECT * FROM cmSiNoVer";
+				        
+				        PreparedStatement pstmt = conn.prepareStatement(sql);
+						ResultSet rs = pstmt.executeQuery();
+						rs.next();
+						
+						rs.getString("isHidden"); //If this throws exception then it's older than 2.3
+				    }
+				    catch(Exception e)
+				    {
+				        e.printStackTrace();
+				    }
+				}
+				catch(Exception e)
+				{
+					issueCommand(getConnection(jdbcDriverName, sqlServerJdbcURL, dbUser, dbPassword), "CREATE DATABASE " + dbName + ";");
+					//callProcedure(getConnection(jdbcDriverName, sqlServerJdbcURL, dbUser, dbPassword), "sp_dbcmptlevel", dbName, "80");
+				}
+				
+				createUsersSQLServer(jdbcDriverName, dbServer, dbPort, dbInstance, dbUser, dbPassword, dbName, igUser, igPassword);
+				createTables(jdbcDriverName, sqlServerIGJdbcURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
+				createInitialData(jdbcDriverName, sqlServerIGJdbcURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
 			}
-			catch(Exception e)
-			{
-				issueCommand(getConnection(jdbcDriverName, sqlServerJdbcURL, dbUser, dbPassword), "CREATE DATABASE " + dbName + ";");
-				//callProcedure(getConnection(jdbcDriverName, sqlServerJdbcURL, dbUser, dbPassword), "sp_dbcmptlevel", dbName, "80");
-			}
-			
-			createUsersSQLServer(jdbcDriverName, dbServer, dbPort, dbInstance, dbUser, dbPassword, dbName, igUser, igPassword);
-			createTables(jdbcDriverName, sqlServerIGJdbcURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
-			createInitialData(jdbcDriverName, sqlServerIGJdbcURL, dbProvider, dbUser, dbPassword, dbName, igUser, igPassword);
 		}
 		
 	}
@@ -1135,7 +1251,7 @@ public class InstallationController extends BaseController
 		}
 		catch (Exception e) 
 		{
-			System.out.println("Error creating users or database:" + e.getMessage() + ".");
+			logger.error("Error creating users or database:" + e.getMessage() + ".");
 			try{conn.close();}catch(Exception e2){}
 			throw e;
 		}
@@ -1154,7 +1270,7 @@ public class InstallationController extends BaseController
 		}
 		catch (Exception e) 
 		{
-			System.out.println("Dropping old objects threw error:" + e.getMessage() + ". Let's continue...");
+			logger.error("Dropping old objects threw error:" + e.getMessage() + ". Let's continue...");
 		}
 		
 		try
@@ -1167,7 +1283,7 @@ public class InstallationController extends BaseController
 		}
 		catch (Exception e) 
 		{
-			System.out.println("Error creating users or database:" + e.getMessage() + ".");
+			logger.error("Error creating users or database:" + e.getMessage() + ".");
 			try{conn.close();}catch(Exception e2){}
 			throw e;
 		}
@@ -1499,8 +1615,8 @@ public class InstallationController extends BaseController
 		{
 			String valuesPart = sql.substring(sql.indexOf("VALUES") + 6).trim();
 			sql = sql.substring(0, sql.indexOf("VALUES") + 6);
-			//System.out.println("sql:" + sql);
-			//System.out.println("valuesPart:" + valuesPart);
+			//logger.info("sql:" + sql);
+			//logger.info("valuesPart:" + valuesPart);
 			
 			String tableName 		= null;
 			int blobColumn			= 0;
@@ -1637,7 +1753,7 @@ public class InstallationController extends BaseController
             cs.close();
         	//conn.close();
             
-            //System.out.println("After procedure:" + rs);
+            //logger.info("After procedure:" + rs);
         }
         catch(SQLException ex) 
         {
@@ -1705,9 +1821,9 @@ public class InstallationController extends BaseController
 	{
 		List columns = new ArrayList();
 		
-		//System.out.println("columnDefinition:" + columnDefinition);
+		//logger.info("columnDefinition:" + columnDefinition);
 		columnDefinition = columnDefinition.substring(1, columnDefinition.length() - 1);
-		//System.out.println("columnDefinition:" + columnDefinition);
+		//logger.info("columnDefinition:" + columnDefinition);
 		
 		StringTokenizer st = new StringTokenizer(columnDefinition, ",");
 		while (st.hasMoreTokens()) 
@@ -1744,9 +1860,9 @@ public class InstallationController extends BaseController
 	{
 		List valueList = new ArrayList();
 		
-		//System.out.println("values:" + values);
+		//logger.info("values:" + values);
 		values = values.substring(1, values.length() - 2);
-		//System.out.println("values:" + values);
+		//logger.info("values:" + values);
 		
 		int offset = 0;
 		int index = values.indexOf("[,]", offset);
@@ -1788,8 +1904,12 @@ public class InstallationController extends BaseController
 	 * This method should validate all aspects of the system. First validate if the database connection files are valid, next if the database is up2date and last if the server config files are valid.
 	 * @return
 	 */
+	
 	public boolean validateSetup() 
 	{
+		Boolean serverConfigOK = false;
+		try { serverConfigOK = validateApplicationFile(); } catch (Exception e) { e.printStackTrace(); }
+		
 		boolean isValid = true;
 		try
 		{
@@ -1797,15 +1917,45 @@ public class InstallationController extends BaseController
 		}
 		catch (Exception e) 
 		{
-			e.printStackTrace();
+			//e.printStackTrace();
 			logger.error("Exception reading database: " + e.getMessage() + ". Let's check the database.xml for config options.");
 			try 
 			{
+				int reason = getBrokenDatabaseReason();
+				logger.error("Reason:" + reason);
+				if(reason == DATABASE_PARAMETERS_MISSING)
+					isValid = false;
+				else if(reason == DATABASE_SERVER_DOWN)
+					logger.error("Cannot classify this as an config issue");
+				else if(reason == DATABASE_SERVER_MISSING_DATABASE || reason == DATABASE_SERVER_MISSING_DATABASE_TABLES)
+					isValid = false;
+
+				/*
 				String url = getJDBCParamFromCastorXML("//param[@name='url']");
 				if(url.indexOf("@database.url@") > -1)
 				{
 					isValid = false;
 				}
+				else
+				{
+					String applicationName = CmsPropertyHandler.getApplicationName();
+					logger.info("applicationName:" + applicationName);
+					logger.info("serverConfigOK:" + serverConfigOK);
+					if(applicationName.equals("cms") && serverConfigOK)
+					{
+						logger.info("url:" + url);
+						logger.info("e.getMessage():" + e.getMessage());
+						logger.info("e.getCause().getMessage():" + (e.getCause() != null ? e.getCause().getMessage() : ""));
+						
+						int reason = getBrokenDatabaseReason();
+						logger.info("Reason:" + reason);
+						if(e.getMessage().indexOf("Unknown database") > -1 || e.getMessage().indexOf("Could not create connection to database server") > -1)
+							isValid = false;
+						else if(e.getCause() != null && e.getCause().getMessage().indexOf("Unknown database") > -1 || e.getCause().getMessage().indexOf("Could not create connection to database server") > -1)
+							isValid = false;					
+					}
+				}
+				*/
 			} 
 			catch (Exception e1) 
 			{
@@ -1814,7 +1964,7 @@ public class InstallationController extends BaseController
 			}
 		}
 
-		System.out.println("Was it valid based on database connection:" + isValid);
+		logger.info("Was it valid based on database connection:" + isValid);
 		if(isValid)
 		{
 			try
@@ -1829,12 +1979,12 @@ public class InstallationController extends BaseController
 			}
 		}
 
-		System.out.println("Was it valid based on database version:" + isValid);
+		logger.info("Was it valid based on database version:" + isValid);
 		if(isValid)
 		{
 			try
 			{
-				Boolean serverConfigOK = validateApplicationFile();
+				serverConfigOK = validateApplicationFile();
 				if(!serverConfigOK)
 					isValid = false;
 			}
@@ -1843,9 +1993,79 @@ public class InstallationController extends BaseController
 				e.printStackTrace();
 			}
 		}
-		System.out.println("Was it valid based on application properties:" + isValid);
+		
+		logger.info("Was it valid based on application properties:" + isValid);
+		
 		return isValid;
 	}
 
 
+	public static final int ALL_OK = 0;
+	public static final int DATABASE_PARAMETERS_MISSING = 1;
+	public static final int DATABASE_SERVER_DOWN = 2;
+	public static final int DATABASE_SERVER_MISSING_DATABASE = 3;
+	public static final int DATABASE_SERVER_MISSING_DATABASE_TABLES = 4;
+	
+	public int getBrokenDatabaseReason()
+	{
+		//Lets find out why error
+		try
+	    {
+			String jdbcDriverName = getJDBCParamFromCastorXML("//param[@name='driver-class-name']");
+			String jdbcURL = getJDBCParamFromCastorXML("//param[@name='url']");
+			String igUser = getJDBCParamFromCastorXML("//param[@name='username']");
+			String igPassword = getJDBCParamFromCastorXML("//param[@name='password']");
+			
+			if(jdbcDriverName.indexOf("@database.url@") > -1)
+				return DATABASE_PARAMETERS_MISSING;
+			
+			Connection conn = getConnection(jdbcDriverName, jdbcURL, igUser, igPassword);
+			
+			try
+		    {
+		        String sql = "SELECT * FROM cmInfoGlueProperties";
+		        
+		        PreparedStatement pstmt = conn.prepareStatement(sql);
+				ResultSet rs = pstmt.executeQuery();
+				rs.next();
+				
+				rs.close();
+				pstmt.close();
+		    }
+		    catch(Exception e)
+		    {
+		        logger.error("Was missing database tables:" + e.getMessage());
+		        return DATABASE_SERVER_MISSING_DATABASE_TABLES;
+		    }
+	    }
+	    catch(Exception e)
+	    {
+	    	logger.error("Error getting pure connection:" + e.getMessage());
+	    	
+	    	if(e.getMessage().indexOf("Unknown database") > -1 || e.getCause() != null && e.getCause().getMessage().indexOf("Unknown database") > -1)
+	    	{
+	    		logger.error("Was a missing database error based on errorMessage");
+	    		return DATABASE_SERVER_MISSING_DATABASE;
+	    	}
+	    	else if(e instanceof ConnectException || e.getCause() != null && e.getCause() instanceof ConnectException || e.getCause().getCause() != null && e.getCause().getCause() instanceof ConnectException)
+	    	{
+	    		logger.error("Was a connection error based on ConnectException");
+	    		return DATABASE_SERVER_DOWN;
+	    	}
+	    	/*
+	    	else if(e.getMessage().indexOf("Could not create connection to database server") > -1)
+	    	{
+	    		logger.error("Was a connection error based on errorMessage");
+	    		return DATABASE_SERVER_DOWN;
+	    	}
+	    	*/
+	    	
+	    	return DATABASE_SERVER_MISSING_DATABASE;
+	    	//return DATABASE_SERVER_MISSING_DATABASE;
+	    }
+
+		return ALL_OK;
+	}
+		
+	
 }

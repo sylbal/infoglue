@@ -3,8 +3,13 @@
 
 	<!-- Installer / database upgrader -->
 	<action name="org.infoglue.cms.applications.common.actions.InstallAction" alias="Install">
+		<!--  
+		<view name="input">/cms/common/install/viewInstallOption.vm</view>
+		<view name="inputInitiateInstall">/cms/common/install/viewIntroduction.vm</view>
+		-->
 		<view name="input">/cms/common/install/viewIntroduction.vm</view>
 		<view name="inputDatabase">/cms/common/install/viewDatabase.vm</view>
+		<view name="inputDatabaseExisting">/cms/common/install/viewDatabaseFromExistingConfig.vm</view>
 		<view name="inputDatabaseUpgrade">/cms/common/install/viewDatabaseUpgrade.vm</view>
 		<view name="inputServer">/cms/common/install/viewServer.vm</view>
 		<view name="inputInitialData">/cms/common/install/viewInitialData.vm</view>
@@ -811,7 +816,7 @@
 	</action>
 	<action name="org.infoglue.cms.applications.contenttool.actions.ReplaceContentAction" alias="ReplaceContent">
 		<view name="success">SearchContent.action</view>
-		<view name="successV3">Search.action?repositoryId=${repositoryId}&amp;searchString=${searchString}</view>
+		<view name="successV3">Search.action</view>
 		<!--<view name="success">/cms/contenttool/viewContentVersionSearchResult.vm</view>-->
 		<view name="error">/cms/contenttool/error.vm</view>
 	</action>
@@ -988,8 +993,8 @@
 	<action name="org.infoglue.cms.applications.contenttool.actions.UpdateContentVersionAction" alias="UpdateContentVersion">
 		<view name="input">/cms/contenttool/viewContentVersionForFCKEditor.vm</view>
 		<view name="inputStandalone">/cms/contenttool/v3/viewContentVersionStandaloneForFCKEditor.vm</view>
-		<view name="success">ExtendedRedirect.action?url=ViewContentVersion.action#contentId#languageId#currentEditorId#concurrentModification#oldModifiedDateTime</view>
-		<view name="successV3">ExtendedRedirect.action?url=ViewContentVersion!V3.action#contentVersionId#contentId#languageId#attributeName#currentEditorId#concurrentModification#oldModifiedDateTime#closeOnLoad#publishOnLoad</view>
+		<view name="success">ExtendedRedirect.action?url=ViewContentVersion.action#contentId#languageId#currentEditorId#concurrentModification#oldModifiedDateTime#stateChanged</view>
+		<view name="successV3">ExtendedRedirect.action?url=ViewContentVersion!V3.action#contentVersionId#contentId#languageId#attributeName#currentEditorId#concurrentModification#oldModifiedDateTime#closeOnLoad#publishOnLoad#stateChanged</view>
 		<view name="successXMLV3">ExtendedRedirect.action?url=ViewContentVersion!asXMLV3.action?#contentVersionId#contentId#repositoryId</view>
 		<!--<view name="success">ViewContentVersion.action</view>-->
 		<view name="background">ViewContentVersion!background.action</view>
@@ -1132,6 +1137,7 @@
 	</action>
 	<action name="org.infoglue.cms.applications.managementtool.actions.UpdateContentTypeDefinitionAction" alias="UpdateContentTypeDefinition">
 		<view name="input">/cms/managementtool/viewContentTypeDefinition.vm</view>
+		<view name="simple">ViewContentTypeDefinition!useSimple.action</view>
 		<view name="success">ViewContentTypeDefinition.action</view>
 		<view name="saveAndExit">ViewListContentTypeDefinition.action</view>
 		<view name="error">/cms/managementtool/error.vm</view>
@@ -1194,7 +1200,7 @@
 		<view name="successV3">ViewSiteNode!V3.action?stay=true</view>
 		<view name="saveAndExit">ViewListSiteNode.action</view>
 		<view name="saveAndExitV3">ViewSiteNode!V3.action</view>
-		<view name="saveAndExitV3Inline">ViewInlineOperationMessages.action?automaticClose=true&amp;actionUrl=${actionUrl}&amp;target=structure&amp;targetTitle=${targetTitle}</view>
+		<view name="saveAndExitV3Inline">ViewInlineOperationMessages.action?automaticClose=true&amp;actionUrl=${actionUrl}&amp;target=structure&amp;targetTitle=${targetTitle}&amp;userSessionKey=${userSessionKey}</view>
 		<view name="successChooseSiteNodeTypeDefinition">ViewSiteNode!V3.action?siteNodeId=${siteNodeId}</view>
 		<view name="error">/cms/structuretool/error.vm</view>
 		<view name="accessDenied">/cms/structuretool/viewConstraintException.vm</view>
@@ -1648,7 +1654,7 @@
 		<view name="error">/cms/managementtool/error.vm</view>
 	</action>
 	<action name="org.infoglue.cms.applications.managementtool.actions.DeleteRedirectAction" alias="DeleteRedirect">
-		<view name="success">ViewListRedirect.action</view>
+		<view name="success">ViewListRedirect.action?tabId=${tabId}</view>
 		<view name="error">/cms/managementtool/error.vm</view>
 		<view name="input">/cms/contenttool/showConstraintException.vm</view>
 	</action>

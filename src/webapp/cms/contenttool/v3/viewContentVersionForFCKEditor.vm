@@ -156,6 +156,15 @@
 				openPopup(url, "RelationEditor", "width=700,height=600,left=" + (document.body.clientWidth / 4) + ",top=50,toolbar=no,status=yes,scrollbars=yes,location=no,menubar=no,directories=no,resizable=yes");
 			}
 		}
+
+		function openRelationEditorInline(url)
+		{
+			if ((!getDirty() && !checkWYSIWYGDirty()) || confirm('$ui.getString("tool.contenttool.formIsDirtyWarning")'))
+			{
+				allowSave = false;
+				if(top.openInlineDiv) top.openInlineDiv(url, 600, 800, true, true, 'Properties editor'); else openRelationEditor(url);
+			}
+		}
 		
 	
 		//*******************************************
@@ -275,6 +284,8 @@
 		var repositoryId 		= "$repositoryId";
 		var languageId 			= "$languageId";
 		
+		var transferPlain = false;
+		
 		var count = 0;
 		var minute = 60000;
 		function doTimer()
@@ -373,6 +384,15 @@
 		  		);
 			#end	
 			
+			//alert("$stateChanged");
+			#if($stateChanged)
+			try
+			{
+				parent.refreshContent($contentId, 1, $contentId);
+			}
+			catch(e) {alert("e:" + e);}
+			#end
+			
 			#if($translate)
 			  	$("#otherLanguageTabsContainer").tabs({ cache: false, show:function() { resizeScrollArea(); }, select: function(e, ui) { loadFrame(ui.index); }}  );
 			#end
@@ -406,14 +426,20 @@
 		 	
 		function save()
 		{
+			var selected = $("#tabsContainer").tabs( "option", "selected" );
+			//alert("selected:" + selected);
+			
 			if($("#contentCoverFrame").get(0).contentWindow.save)
 				$("#contentCoverFrame").get(0).contentWindow.save();
 			if($("#contentAccessRightsFrame").size() && $("#contentAccessRightsFrame").get(0).contentWindow.save)
 				$("#contentAccessRightsFrame").get(0).contentWindow.save();
 			if($("#contentVersionAccessRightsFrame").size() && $("#contentVersionAccessRightsFrame").get(0).contentWindow.save)
 				$("#contentVersionAccessRightsFrame").get(0).contentWindow.save();
-
-			validateAndSubmitContentForm();
+			
+			if(selected == 3)
+				setTimeout("validateAndSubmitContentForm();", 300);
+			else
+				validateAndSubmitContentForm();
 		}
 		
 		function saveAndExit(url)
@@ -580,9 +606,9 @@
 						value = arr.join(",");
 			        }
 					else
-					{
+					{						
 						var hiddenField = document.getElementById(elementId + "Hidden");
-						if(hiddenField)
+						if(hiddenField && transferPlain == false)
 							fieldName = "document.editForm." + elementId + "Hidden";
 						else
 							fieldName = "document.editForm." + elementId;

@@ -172,7 +172,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
         //TODO - Can this be removed perhaps
         while(CmsPropertyHandler.getActuallyBlockOnBlockRequests() && RequestAnalyser.getRequestAnalyser().getBlockRequests())
         {
-        	//System.out.println("Queing up requests as cache eviction are taking place..");
+        	//logger.info("Queing up requests as cache eviction are taking place..");
         	Thread.sleep(10);
         }
         
@@ -180,7 +180,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
         {
 	        Integer maxActiveRequests = new Integer(CmsPropertyHandler.getMaxActiveRequests());
 	        Integer maxRequestTime = new Integer(CmsPropertyHandler.getMaxRequestTime());
-        	//System.out.println("maxActiveRequests:" + maxActiveRequests + "-" + maxRequestTime);
+        	//logger.info("maxActiveRequests:" + maxActiveRequests + "-" + maxRequestTime);
 
 	    	while(CmsPropertyHandler.getUseHighLoadLimiter().equalsIgnoreCase("true") && RequestAnalyser.getRequestAnalyser().getNumberOfActiveRequests() > maxActiveRequests.intValue() && (lastRequestProcessingTime > maxRequestTime.intValue() || maxRequestTime.intValue() < 1))
 	    	{
@@ -188,7 +188,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 	        		logger.info("Queing up...:" + RequestAnalyser.getRequestAnalyser().getNumberOfActiveRequests() + "(" + RequestAnalyser.getRequestAnalyser().getNumberOfCurrentRequests() + ") - " + lastRequestProcessingTime);
 	        	
 	            int sleepTime = random.nextInt(300);
-	            //System.out.println("Queing up...:" + RequestAnalyser.getRequestAnalyser().getNumberOfActiveRequests() + "(" + RequestAnalyser.getRequestAnalyser().getNumberOfCurrentRequests() + ") - " + lastRequestProcessingTime + " for " + sleepTime + " ms");
+	            //logger.info("Queing up...:" + RequestAnalyser.getRequestAnalyser().getNumberOfActiveRequests() + "(" + RequestAnalyser.getRequestAnalyser().getNumberOfCurrentRequests() + ") - " + lastRequestProcessingTime + " for " + sleepTime + " ms");
 	            
 	        	Thread.sleep(sleepTime);
 	    	}
@@ -235,7 +235,6 @@ public class ViewPageAction extends InfoGlueAbstractAction
 	    	boolean isUserRedirected = false;
 			Integer protectedSiteNodeVersionId = this.nodeDeliveryController.getProtectedSiteNodeVersionIdForPageCache(dbWrapper.getDatabase(), siteNodeId);
 			Integer forceProtocolChangeSetting = this.nodeDeliveryController.getForceProtocolChangeSettingForPageCache(dbWrapper.getDatabase(), siteNodeId);
-			//System.out.println("forceProtocolChangeSetting:" + forceProtocolChangeSetting);
 			
 			if(logger.isInfoEnabled())
 				logger.info("protectedSiteNodeVersionId:" + protectedSiteNodeVersionId);
@@ -429,7 +428,11 @@ public class ViewPageAction extends InfoGlueAbstractAction
 			extraInformation += "UserAgent: " + getRequest().getHeader("User-Agent") + "\n";
 			extraInformation += "User IP: " + getRequest().getRemoteAddr();
 
-			logger.error("An error occurred so we should not complete the transaction:" + e.getMessage() + "\n" + extraInformation, e);
+			if(e instanceof java.net.SocketException || e.getCause() != null && e.getCause() instanceof java.net.SocketException)
+				logger.error("An error occurred so we should not complete the transaction:" + e.getMessage() + "\n" + extraInformation);
+			else
+				logger.error("An error occurred so we should not complete the transaction:" + e.getMessage() + "\n" + extraInformation, e);
+			
 			rollbackTransaction(dbWrapper.getDatabase());
 
 			getResponse().setContentType("text/html; charset=UTF-8");
@@ -565,7 +568,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 			if(useAccessBasedProtocolRedirects || forceProtocolChangeSetting.equals(SiteNodeVersionVO.FORCE_SECURE))
 			{
 				String originalFullURL = getOriginalFullURL();
-				//System.out.println("originalFullURL:" + originalFullURL);
+				//logger.info("originalFullURL:" + originalFullURL);
 		    	boolean isAnonymousAccepted = true;
 		    	if(protectedSiteNodeVersionId != null)
 		    	{
@@ -620,7 +623,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 				
         while(CmsPropertyHandler.getActuallyBlockOnBlockRequests() && RequestAnalyser.getRequestAnalyser().getBlockRequests())
         {
-        	//System.out.println("Queing up requests as cache eviction are taking place..");
+        	//logger.info("Queing up requests as cache eviction are taking place..");
         	Thread.sleep(10);
         }
 		
@@ -823,7 +826,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 			extraInformation += "UserAgent: " + getRequest().getHeader("User-Agent") + "\n";
 			extraInformation += "User IP: " + getRequest().getRemoteAddr();
 			
-			if(e instanceof java.net.SocketException)
+			if(e instanceof java.net.SocketException || e.getCause() != null && e.getCause() instanceof java.net.SocketException)
 				logger.warn("An error occurred so we should not complete the transaction:" + e.getMessage() + "\n" + extraInformation);
 			else
 				logger.error("An error occurred so we should not complete the transaction:" + e.getMessage() + "\n" + extraInformation, e);
@@ -1166,7 +1169,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 			    {
 					Map status = new HashMap();
 					status.put("redirected", new Boolean(false));
-					principal = AuthenticationModule.getAuthenticationModule(db, this.getOriginalFullURL()).loginUser(getRequest(), getResponse(), status);
+					principal = AuthenticationModule.getAuthenticationModule(db, this.getOriginalFullURL(), getRequest(), false).loginUser(getRequest(), getResponse(), status);
 					Boolean redirected = (Boolean)status.get("redirected");
 					if(redirected != null && redirected.booleanValue())
 					{
@@ -1204,7 +1207,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 			{				
 				Map status = new HashMap();
 				status.put("redirected", new Boolean(false));
-				principal = AuthenticationModule.getAuthenticationModule(db, this.getOriginalFullURL()).loginUser(getRequest(), getResponse(), status);
+				principal = AuthenticationModule.getAuthenticationModule(db, this.getOriginalFullURL(), getRequest(), false).loginUser(getRequest(), getResponse(), status);
 				Boolean redirected = (Boolean)status.get("redirected");
 				if(redirected != null && redirected.booleanValue())
 				{
@@ -1250,7 +1253,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 									this.getHttpSession().removeAttribute("infogluePrincipal");
 									logger.info("SiteNode is protected and anonymous user was not allowed - sending him to login page.");
 									String redirectUrl = getRedirectUrl(getRequest(), getResponse());								
-									//System.out.println("redirectUrl:" + redirectUrl);
+									//logger.info("redirectUrl:" + redirectUrl);
 									getResponse().sendRedirect(redirectUrl);
 									isRedirected = true;
 								}
@@ -1385,8 +1388,8 @@ public class ViewPageAction extends InfoGlueAbstractAction
 
 					if(principal.getName().equals(CmsPropertyHandler.getAnonymousUser()))
 					{
-						String ssoUserName = AuthenticationModule.getAuthenticationModule(null, this.getOriginalFullURL()).getSSOUserName(getRequest());
-						//System.out.println("ssoUserName:" + ssoUserName);
+						String ssoUserName = AuthenticationModule.getAuthenticationModule(null, this.getOriginalFullURL(), getRequest(), false).getSSOUserName(getRequest());
+						//logger.info("ssoUserName:" + ssoUserName);
 						if(ssoUserName != null)
 						{
 							principal = UserControllerProxy.getController().getUser(ssoUserName);
@@ -1502,7 +1505,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 					Map status = new HashMap();
 					status.put("redirected", new Boolean(false));
 					getRequest().setAttribute("gateway", "" + gateway);
-					principal = AuthenticationModule.getAuthenticationModule(db, this.getOriginalFullURL()).loginUser(getRequest(), getResponse(), status);
+					principal = AuthenticationModule.getAuthenticationModule(db, this.getOriginalFullURL(), getRequest(), false).loginUser(getRequest(), getResponse(), status);
 					Boolean redirected = (Boolean)status.get("redirected");
 					if(redirected != null && redirected.booleanValue())
 					{
@@ -1526,7 +1529,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 				Map status = new HashMap();
 				status.put("redirected", new Boolean(false));
 				getRequest().setAttribute("gateway", "" + gateway);
-				principal = AuthenticationModule.getAuthenticationModule(db, this.getOriginalFullURL()).loginUser(getRequest(), getResponse(), status);
+				principal = AuthenticationModule.getAuthenticationModule(db, this.getOriginalFullURL(), getRequest(), false).loginUser(getRequest(), getResponse(), status);
 				Boolean redirected = (Boolean)status.get("redirected");
 				if(redirected != null && redirected.booleanValue())
 				{
@@ -1660,7 +1663,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 			    arguments.put("j_username", userName);
 			    arguments.put("j_password", password);
 			    
-				principal = ExtranetController.getController().getAuthenticatedPrincipal(arguments);
+				principal = ExtranetController.getController().getAuthenticatedPrincipal(arguments, this.getRequest());
 				if(principal != null)
 				{
 				    this.getHttpSession().setAttribute("infogluePrincipal", principal);
@@ -1699,7 +1702,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 				if(servletContextUserName != null && !servletContextUserName.equals(""))
 				{
 					principal = getAuthenticatedUser(servletContextUserName);
-					//System.out.println("principal:" + principal);
+					//logger.info("principal:" + principal);
 					if(principal != null)
 					{
 					    this.getHttpSession().setAttribute("infogluePrincipal", principal);
@@ -1727,17 +1730,14 @@ public class ViewPageAction extends InfoGlueAbstractAction
         String userName = this.getRequest().getParameter("j_username");
 	    String password = this.getRequest().getParameter("j_password");
 	    String ticket 	= null; //this.getRequest().getParameter("ticket");
-	    //System.out.println("userName:" + userName);
-	    //System.out.println("password:" + password);
-	    //System.out.println("ticket:" + ticket);
-		
+	    
 		if(ticket != null)
 	    {
-			//System.out.println("ticket used in loginWithRequestArguments:" + ticket);
+			//logger.info("ticket used in loginWithRequestArguments:" + ticket);
 		    Map arguments = new HashMap();
 		    arguments.put("ticket", ticket);
 		    
-			principal = ExtranetController.getController().getAuthenticatedPrincipal(arguments);
+			principal = ExtranetController.getController().getAuthenticatedPrincipal(arguments, this.getRequest());
 			if(principal != null)
 			{
 			    this.getHttpSession().setAttribute("infogluePrincipal", principal);
@@ -1751,7 +1751,7 @@ public class ViewPageAction extends InfoGlueAbstractAction
 		    arguments.put("j_username", userName);
 		    arguments.put("j_password", password);
 		    
-			principal = ExtranetController.getController().getAuthenticatedPrincipal(arguments);
+			principal = ExtranetController.getController().getAuthenticatedPrincipal(arguments, this.getRequest());
 			if(principal != null)
 			{
 			    this.getHttpSession().setAttribute("infogluePrincipal", principal);
@@ -1817,10 +1817,10 @@ public class ViewPageAction extends InfoGlueAbstractAction
 
   	private String getRedirectUrl(HttpServletRequest request, HttpServletResponse response) throws ServletException, Exception 
   	{
-		String url = AuthenticationModule.getAuthenticationModule(null, this.getOriginalFullURL()).getLoginDialogUrl(request, response);
+		String url = AuthenticationModule.getAuthenticationModule(null, this.getOriginalFullURL(), request, false).getLoginDialogUrl(request, response);
 		
 		String repositoryLoginUrl = RepositoryDeliveryController.getRepositoryDeliveryController().getExtraPropertyValue(repositoryId, "loginUrl");
-		//System.out.println("repositoryLoginUrl:" + repositoryLoginUrl);
+		//logger.info("repositoryLoginUrl:" + repositoryLoginUrl);
 		if(repositoryLoginUrl != null && !repositoryLoginUrl.equals(""))
 		{
 			String returnAddress = this.getOriginalFullURL();

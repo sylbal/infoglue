@@ -735,7 +735,9 @@ function showEmptySlotMenu(slotId, event, compId, anInsertUrl, slotContentIdVar)
 	
 	try
 	{
+	    //alert("aaaa");
 	    var access = eval("hasAccessToAddComponent" + convertName(compId)); 
+	    //alert("hasAccessToAddComponent" + convertName(compId) + "=" + access);
 	    //alert("access:" + access);
 	    if(access) 
 	    {
@@ -1452,7 +1454,8 @@ function saveAttribute(selectedContentId, selectedLanguageId, selectedAttributeN
 				value = oEditor.GetXHTML( true )
 				//alert("Value: " + value);
 	 		}
-			value = Url.encode(value);
+			//alert("value:" + value);
+			//value = Url.encode(value);
 			//alert("Value: " + value);
 		}
 		else
@@ -1460,8 +1463,17 @@ function saveAttribute(selectedContentId, selectedLanguageId, selectedAttributeN
 			value = $("#inputattribute" + selectedContentId + selectedAttributeName).val();
 		}
 		
-		var data = "contentId=" + selectedContentId + "&languageId=" + selectedLanguageId + "&attributeName=" + selectedAttributeName + "&" + selectedAttributeName + "=" + value + "&deliverContext=" + currentContext;
+		//alert("value:" + value);
+		//var data = "contentId=" + selectedContentId + "&languageId=" + selectedLanguageId + "&attributeName=" + selectedAttributeName + "&" + selectedAttributeName + "=" + value + "&deliverContext=" + currentContext;
 
+		var data = new Object();
+		data.contentId = selectedContentId;
+		data.languageId = selectedLanguageId;
+		data.attributeName = selectedAttributeName;
+		data.deliverContext = currentContext;
+		data['' + selectedAttributeName] = value;
+
+		
 		$.ajax({
 			type: "POST",
 			url: "" + componentEditorUrl + "UpdateContentVersionAttribute!saveAndReturnValue.action",
@@ -1513,8 +1525,15 @@ function saveAttribute(selectedContentId, selectedLanguageId, selectedAttributeN
 		//alert("Value: " + value);
 		//value = Url.encode(value);
 		//alert("Value: " + value);
-		var data = "contentId=" + selectedContentId + "&languageId=" + selectedLanguageId + "&attributeName=" + selectedAttributeName + "&" + selectedAttributeName + "=" + value;
+		//var data = "contentId=" + selectedContentId + "&languageId=" + selectedLanguageId + "&attributeName=" + selectedAttributeName + "&" + selectedAttributeName + "=" + value;
 	
+		var data = new Object();
+		data.contentId = selectedContentId;
+		data.languageId = selectedLanguageId;
+		data.attributeName = selectedAttributeName;
+		data.deliverContext = currentContext;
+		data['' + selectedAttributeName] = value;
+		
 		$.ajax({
 			type: "POST",
 		   	url: "" + componentEditorUrl + "UpdateContentVersionAttribute!saveAndReturnValue.action",

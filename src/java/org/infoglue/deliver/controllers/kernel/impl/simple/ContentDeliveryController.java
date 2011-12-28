@@ -168,7 +168,7 @@ public class ContentDeliveryController extends BaseDeliveryController
 		ContentVO contentVO = (ContentVO)CacheController.getCachedObjectFromAdvancedCache("contentCache", key);
 		if(contentVO != null)
 		{
-			//System.out.println("There was an cached contentVO:" + contentVO);
+			//logger.info("There was an cached contentVO:" + contentVO);
 		}
 		else
 		{
@@ -285,7 +285,7 @@ public class ContentDeliveryController extends BaseDeliveryController
 		else
 		{
 			contentVersionVO = this.getContentVersionVO(siteNodeId, contentId, languageId, db, useLanguageFallback, deliveryContext, infoGluePrincipal);
-        	if(contentVersionVO != null)
+			if(contentVersionVO != null)
 			{
 				CacheController.cacheObjectInAdvancedCache("contentVersionCache", contentVersionKey, contentVersionVO, new String[]{"contentVersion_" + contentVersionVO.getId(), "content_" + contentVersionVO.getContentId()}, true);
 			}
@@ -605,7 +605,6 @@ public class ContentDeliveryController extends BaseDeliveryController
 			else if(smallestContentVersionVOCandidate != null)
 			{
 				contentVersionVO = (ContentVersionVO)getVOWithId(SmallContentVersionImpl.class, ((SmallestContentVersionVO)smallestContentVersionVOCandidate).getId(), db);
-	        	
 				CacheController.cacheObjectInAdvancedCache("contentVersionCache", versionKey, contentVersionVO, new String[]{"contentVersion_" + contentVersionVO.getId(), "content_" + contentVersionVO.getContentId()}, true);
 			}
 			else
@@ -722,8 +721,6 @@ public class ContentDeliveryController extends BaseDeliveryController
 				for(LanguageVO languageVO : languageVOList)
 				{
 				    OQLQuery oql = db.getOQLQuery( "SELECT cv FROM org.infoglue.cms.entities.content.impl.simple.SmallestContentVersionImpl cv WHERE cv.languageId = $1 AND cv.stateId >= $2 AND cv.isActive = $3 ORDER BY cv.contentId, cv.contentVersionId desc");
-				    System.out.println("db:" + db);
-				    System.out.println("languageVO:" + languageVO);
 				    oql.bind(languageVO.getId());
 			    	oql.bind(operatingMode);
 			    	oql.bind(true);
@@ -734,7 +731,7 @@ public class ContentDeliveryController extends BaseDeliveryController
 			        {
 						SmallestContentVersion contentVersion = (SmallestContentVersion)results.next();
 						SmallestContentVersionVO contentVersionVO = contentVersion.getValueObject();
-						System.out.println("contentVersion:" + contentVersionVO.getContentId() + ":" + contentVersionVO.getId());
+						logger.info("contentVersion:" + contentVersionVO.getContentId() + ":" + contentVersionVO.getId());
 						getContentVO(contentVersionVO.getContentId(), db);
 						getObjectWithId(ContentVersionImpl.class, contentVersionVO.getId(), db);
 						getObjectWithId(SmallContentVersionImpl.class, contentVersionVO.getId(), db);
@@ -742,7 +739,7 @@ public class ContentDeliveryController extends BaseDeliveryController
 						String versionKey = "" + contentVersionVO.getContentId() + "_" + contentVersionVO.getLanguageId() + "_" + operatingMode + "_smallestContentVersionVO";
 			        	if(oldKey == null || !oldKey.equals(versionKey))
 			        	{
-			        		System.out.println("Caching current version:" + contentVersion.getId());
+			        		logger.info("Caching current version:" + contentVersion.getId());
 			        		CacheController.cacheObjectInAdvancedCache("contentVersionCache", versionKey, contentVersionVO, new String[]{"contentVersion_" + contentVersionVO.getId(), "content_" + contentVersionVO.getContentId()}, true);
 			        		oldKey = versionKey;
 			        	}
@@ -753,8 +750,6 @@ public class ContentDeliveryController extends BaseDeliveryController
 				
 				
 				    OQLQuery oqlSN = db.getOQLQuery( "SELECT snv FROM org.infoglue.cms.entities.structure.impl.simple.SiteNodeVersionImpl snv WHERE snv.stateId >= $1 AND snv.isActive = $2 ORDER BY snv.owningSiteNode.siteNodeId, snv.siteNodeVersionId desc");
-				    System.out.println("db:" + db);
-				    System.out.println("languageVO:" + languageVO);
 				    oql.bind(languageVO.getId());
 			    	oql.bind(operatingMode);
 			    	oql.bind(true);
@@ -890,13 +885,13 @@ public class ContentDeliveryController extends BaseDeliveryController
 		Boolean hasUserContentAccess = (Boolean)CacheController.getCachedObjectFromAdvancedCache("personalAuthorizationCache", key);
 		if(hasUserContentAccess != null)
 		{
-			//System.out.println("Cached");
+			//logger.info("Cached");
 			return hasUserContentAccess.booleanValue();
 		}
 		else
 		{
 			hasUserContentAccess = true;
-			//System.out.println("----- not Cached");
+			//logger.info("----- not Cached");
 			try 
 			{
 			    if(contentId != null)
@@ -938,7 +933,7 @@ public class ContentDeliveryController extends BaseDeliveryController
 		String enforceRigidContentAccess = CmsPropertyHandler.getEnforceRigidContentAccess();
 		if(enforceRigidContentAccess != null && enforceRigidContentAccess.equalsIgnoreCase("true") && !isMetaInfoQuery)
 		{
-			//System.out.println("Enforcing getHasUserContentAccess for attributeName:" + contentId + ":" + languageId + ":" + attributeName);
+			//logger.info("Enforcing getHasUserContentAccess for attributeName:" + contentId + ":" + languageId + ":" + attributeName);
 			boolean hasUserContentAccess = getHasUserContentAccess(db, infogluePrincipal, contentId);
 			if(!hasUserContentAccess)
 			{
@@ -997,8 +992,8 @@ public class ContentDeliveryController extends BaseDeliveryController
 			else
 			{
 				ContentVersionVO contentVersionVO = getContentVersionVO(db, siteNodeId, contentId, languageId, useLanguageFallback, deliveryContext, infogluePrincipal);
-			   
-	        	if (contentVersionVO != null) 
+
+				if (contentVersionVO != null) 
 				{
 				    attribute = getAttributeValue(db, contentVersionVO, attributeName, escapeHTML);	
 					contentVersionId = contentVersionVO.getId();
@@ -2336,7 +2331,7 @@ public class ContentDeliveryController extends BaseDeliveryController
 					filePath = CmsPropertyHandler.getProperty("digitalAssetPath." + i);
 				}
 
-				//System.out.println("filePath (Should be base url):" + filePath);
+				//logger.info("filePath (Should be base url):" + filePath);
 				
 				SiteNode siteNode = NodeDeliveryController.getNodeDeliveryController(siteNodeId, languageId, contentId).getSiteNode(db, siteNodeId);
 				String dnsName = CmsPropertyHandler.getWebServerAddress();
@@ -2617,8 +2612,8 @@ public class ContentDeliveryController extends BaseDeliveryController
 	        	
 	        	if(startTagIndex > 0 && startTagIndex < xml.length() && endTagIndex > startTagIndex && endTagIndex <  xml.length())
 	        		value = xml.substring(startTagIndex + key.length() + 11, endTagIndex);
-
-	    		if(escapeHTML)
+	        		        	
+	        	if(escapeHTML)
 	        	    value = formatter.escapeHTML(value);
 	        } 
 	        catch(Exception e)
@@ -3137,7 +3132,7 @@ public class ContentDeliveryController extends BaseDeliveryController
     	protectedContentId = getProtectedContentId(db, content);
 
     	//totalLoadTime = totalLoadTime + t.getElapsedTimeNanos();
-    	//System.out.println("totalLoadTime:" + totalLoadTime / 1000000);
+    	//logger.info("totalLoadTime:" + totalLoadTime / 1000000);
 		
 		return protectedContentId;
 	}

@@ -528,13 +528,23 @@ public class ComponentLogic
 
 	public String getParsedContentAttribute(String propertyName, Integer languageId, String attributeName, boolean disableEditOnSight, boolean useInheritance, boolean useRepositoryInheritance, boolean useStructureInheritance)
 	{
+		return getParsedContentAttribute(propertyName, languageId, attributeName, disableEditOnSight, useInheritance, useRepositoryInheritance, useStructureInheritance, false);
+	}
+
+	public String getParsedContentAttribute(String propertyName, Integer languageId, String attributeName, boolean disableEditOnSight, boolean useInheritance, boolean useRepositoryInheritance, boolean useStructureInheritance, boolean escapeVelocityCode)
+	{
 		String attributeValue = "";
 
 		Map property = getInheritedComponentProperty(this.infoGlueComponent, propertyName, useInheritance, useRepositoryInheritance, useStructureInheritance);
 		Integer contentId = getContentId(property);
 		if(contentId != null)
-			attributeValue = templateController.getParsedContentAttribute(contentId, languageId, attributeName, disableEditOnSight);
-			
+		{
+			if(!escapeVelocityCode)
+				attributeValue = templateController.getParsedContentAttribute(contentId, languageId, attributeName, disableEditOnSight);
+			else
+				attributeValue = templateController.getEscapedParsedContentAttribute(contentId, languageId, attributeName, disableEditOnSight);
+		}
+		
 		return attributeValue;
 	}
 
@@ -1446,7 +1456,7 @@ public class ComponentLogic
 				    groups.add("content_" + contentVersionVO.getContentId());
 				}
 
-			    //System.out.println("Adding group: " + "siteNode_" + templateController.getSiteNodeId());
+			    //logger.info("Adding group: " + "siteNode_" + templateController.getSiteNodeId());
 			    groups.add("siteNode_" + templateController.getSiteNodeId());
 			    
 			    if(groups.size() < 26)
@@ -1807,13 +1817,13 @@ public class ComponentLogic
 		{
 			if(property == null && useComponentInheritance)
 			{	
-				//System.out.println("Checking inherited property on:" + this.infoGlueComponent.getName() + "=" + propertyName + " on component:" + this.infoGlueComponent.getName() + ":" + this.infoGlueComponent.getId() + "\n" + this.infoGlueComponent + "\nparentComponent=" + this.infoGlueComponent.getParentComponent());
+				//logger.info("Checking inherited property on:" + this.infoGlueComponent.getName() + "=" + propertyName + " on component:" + this.infoGlueComponent.getName() + ":" + this.infoGlueComponent.getId() + "\n" + this.infoGlueComponent + "\nparentComponent=" + this.infoGlueComponent.getParentComponent());
 				InfoGlueComponent parentComponent = this.infoGlueComponent.getParentComponent();
 				//logger.info("parentComponent: " + parentComponent);
 				while(property == null && parentComponent != null)
 				{
 					property = (Map)parentComponent.getProperties().get(propertyName);
-					//System.out.println("Checking property on parentComponent:" + parentComponent.getName() + "=" + property);
+					//logger.info("Checking property on parentComponent:" + parentComponent.getName() + "=" + property);
 					parentComponent = parentComponent.getParentComponent();
 				}
 			}

@@ -610,7 +610,7 @@ public class BasicTemplateController implements TemplateController
 		}
 		catch(Exception e)
 		{
-			logger.warn("An error occurred trying to get the current content:" + e.getMessage(), e);
+			logger.warn("An error occurred trying to get the current content:" + e.getMessage());
 		}
 
 		return content;
@@ -2139,7 +2139,59 @@ public class BasicTemplateController implements TemplateController
 			if(contentId != null)
 			{
 				String unparsedAttributeValue = ContentDeliveryController.getContentDeliveryController().getContentAttribute(getDatabase(), contentId, languageId, attributeName, this.siteNodeId, USE_LANGUAGE_FALLBACK, this.deliveryContext, this.infoGluePrincipal, false);
-				logger.info("Found unparsedAttributeValue:" + unparsedAttributeValue);
+				//logger.info("Found unparsedAttributeValue:" + unparsedAttributeValue);
+				
+				templateLogicContext.put("inlineContentId", contentId);
+				
+				Map context = new HashMap();
+				context.put("inheritedTemplateLogic", this);
+				context.put("templateLogic", getTemplateController(this.siteNodeId, languageId, contentId, this.request, this.infoGluePrincipal, this.deliveryContext));
+
+				// Add the templateLogicContext objects to this context. (SS - 040219)
+				context.putAll(templateLogicContext);
+				
+				StringWriter cacheString = new StringWriter();
+				PrintWriter cachedStream = new PrintWriter(cacheString);
+				new VelocityTemplateProcessor().renderTemplate(context, cachedStream, unparsedAttributeValue, true);
+				attributeValue = cacheString.toString();
+			}
+		}
+		catch(Exception e)
+		{
+			logger.warn("\nError on url: " + this.getOriginalFullURL() + "\n    ComponentName=[ " + this.getComponentLogic().getInfoGlueComponent().getName() + " ]\nAn error occurred trying to get attributeName=" + attributeName + " on content " + this.contentId + "\nReason:" + e.getMessage());
+			//logger.error("\nError on url: " + this.getOriginalFullURL() + "\nAn error occurred trying to get attributeName=" + attributeName + " on content with id " + contentId + "\nReason:" + e.getMessage(), e);
+		}
+				
+		return attributeValue;
+	}
+
+	/**
+	 * This method is just a dummy method used to ensure that we can ensure to not get a decorated attribute
+	 * value if OnSiteEdit is on.
+	 */
+
+	public String getEscapedParsedContentAttribute(Integer contentId, Integer languageId, String attributeName, boolean clean)
+	{
+		return getEscapedParsedContentAttribute(contentId, languageId, attributeName);
+	}
+
+	/**
+	 * This method deliveres a String with the content-attribute asked for after it has been parsed and all special tags have been converted.
+	 * The attribute is fetched from the specified content.
+	 */
+	 
+	public String getEscapedParsedContentAttribute(Integer contentId, Integer languageId, String attributeName) 
+	{
+		String attributeValue = "";
+		
+		try
+		{
+			if(contentId != null)
+			{
+				String unparsedAttributeValue = ContentDeliveryController.getContentDeliveryController().getContentAttribute(getDatabase(), contentId, languageId, attributeName, this.siteNodeId, USE_LANGUAGE_FALLBACK, this.deliveryContext, this.infoGluePrincipal, false);
+				
+				unparsedAttributeValue = unparsedAttributeValue.replaceAll("\\$(?!(\\.|\\(|templateLogic\\.(getPageUrl|getInlineAssetUrl|languageId)))", "&#36;");
+				//logger.info("Found unparsedAttributeValue:" + unparsedAttributeValue);
 				
 				templateLogicContext.put("inlineContentId", contentId);
 				
@@ -2286,7 +2338,22 @@ public class BasicTemplateController implements TemplateController
 	 * value if OnSiteEdit is on.
 	 */
 
+	public String getParsedContentAttribute(Integer contentId, Integer languageId, String attributeName, boolean clean, boolean escapeVelocityCode)
+	{
+		return getParsedContentAttribute(contentId, languageId, attributeName);
+	}
+
+	/**
+	 * This method is just a dummy method used to ensure that we can ensure to not get a decorated attribute
+	 * value if OnSiteEdit is on.
+	 */
+
 	public String getParsedContentAttribute(ContentVersionVO contentVersionVO, String attributeName, boolean clean)
+	{
+		return getParsedContentAttribute(contentVersionVO, attributeName);
+	}
+
+	public String getParsedContentAttribute(ContentVersionVO contentVersionVO, String attributeName, boolean clean, boolean escapeVelocityCode)
 	{
 		return getParsedContentAttribute(contentVersionVO, attributeName);
 	}
@@ -3053,7 +3120,6 @@ public class BasicTemplateController implements TemplateController
 		{
 			logger.info("contentId " + this.contentId + " with relationName " + attributeName);
 		    String qualifyerXML = this.getContentAttribute(contentId, attributeName, true);
-		    
 			relatedContentVOList = getRelatedContentsFromXML(qualifyerXML);
 		}
 		catch(Exception e)
@@ -5185,7 +5251,7 @@ public class BasicTemplateController implements TemplateController
 		}
 		catch(Exception e)
 		{
-			logger.warn("An error occurred trying to get current page path:" + e.getMessage(), e);
+			logger.warn("An error occurred trying to get current page path:" + e.getMessage());
 		}
 				
 		return pagePath;
@@ -5868,7 +5934,6 @@ public class BasicTemplateController implements TemplateController
 			
 			if((!hideUnauthorizedPages || getHasUserPageAccess(siteNodeVO.getId())) && (showHidden || !siteNodeVO.getIsHidden()))
 			{
-				//System.out.println("Adding " + siteNodeVO.getName());
 				try
 				{
 					WebPage webPage = new WebPage();
@@ -7126,7 +7191,7 @@ public class BasicTemplateController implements TemplateController
 			    arguments.put("j_username", CmsPropertyHandler.getAnonymousUser());
 			    arguments.put("j_password", CmsPropertyHandler.getAnonymousPassword());
 
-	            infoGluePrincipal = (InfoGluePrincipal) ExtranetController.getController().getAuthenticatedPrincipal(arguments);
+	            infoGluePrincipal = (InfoGluePrincipal) ExtranetController.getController().getAuthenticatedPrincipal(arguments, null);
 	        }
 	        
 			WorkflowController workflowController = WorkflowController.getController();
@@ -7159,7 +7224,7 @@ public class BasicTemplateController implements TemplateController
 	            arguments.put("j_username", CmsPropertyHandler.getAnonymousUser());
 			    arguments.put("j_password", CmsPropertyHandler.getAnonymousPassword());
 			    
-			    infoGluePrincipal = (InfoGluePrincipal) ExtranetController.getController().getAuthenticatedPrincipal(arguments);
+			    infoGluePrincipal = (InfoGluePrincipal) ExtranetController.getController().getAuthenticatedPrincipal(arguments, null);
 	        }
 	        
 			WorkflowController workflowController = WorkflowController.getController();
@@ -7190,7 +7255,7 @@ public class BasicTemplateController implements TemplateController
 	            arguments.put("j_username", CmsPropertyHandler.getAnonymousUser());
 			    arguments.put("j_password", CmsPropertyHandler.getAnonymousPassword());
 
-		        infoGluePrincipal = (InfoGluePrincipal) ExtranetController.getController().getAuthenticatedPrincipal(arguments);
+		        infoGluePrincipal = (InfoGluePrincipal) ExtranetController.getController().getAuthenticatedPrincipal(arguments, null);
 	        }
 
 			WorkflowController workflowController = WorkflowController.getController();
@@ -7487,7 +7552,7 @@ public class BasicTemplateController implements TemplateController
 	
 	public String getLogoutURL() throws Exception
 	{
-		AuthenticationModule authenticationModule = AuthenticationModule.getAuthenticationModule(this.getDatabase(), null);
+		AuthenticationModule authenticationModule = AuthenticationModule.getAuthenticationModule(this.getDatabase(), null, this.getHttpServletRequest(), false);
 	    return authenticationModule.getLogoutUrl();
 	}
 

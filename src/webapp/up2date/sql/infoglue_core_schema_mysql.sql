@@ -23,8 +23,8 @@ CREATE TABLE cmAvailableServiceBindingSiteNodeTypeDefinition (
 CREATE TABLE cmContent (
   contentId integer(11) unsigned NOT NULL auto_increment,
   name varchar(255) NOT NULL,
-  publishDateTime datetime NOT NULL default '0000-00-00 00:00:00',
-  expireDateTime datetime NOT NULL default '0000-00-00 00:00:00',
+  publishDateTime datetime NOT NULL default '1970-01-01 12:00:00',
+  expireDateTime datetime NOT NULL default '2070-01-01 12:00:00',
   contentTypeDefinitionId integer(11) default NULL,
   parentContentId integer(11) default NULL,
   creator TEXT NOT NULL,
@@ -68,7 +68,7 @@ CREATE TABLE cmContentVersion (
   contentVersionId integer(11) unsigned NOT NULL auto_increment,
   stateId tinyint(4) NOT NULL default '0',
   versionValue longtext NOT NULL,
-  modifiedDateTime datetime NOT NULL default '0000-00-00 00:00:00',
+  modifiedDateTime datetime NOT NULL default '1970-01-01 12:00:00',
   versionComment text NOT NULL,
   isCheckedOut tinyint(4) NOT NULL default '0',
   isActive tinyint(4) NOT NULL default '1',
@@ -140,7 +140,7 @@ CREATE TABLE cmPublication (
   publicationId integer(11) unsigned NOT NULL auto_increment,
   name varchar(255) NOT NULL,
   description text NOT NULL,
-  publicationDateTime datetime NOT NULL default '0000-00-00 00:00:00',
+  publicationDateTime datetime NOT NULL default '1970-01-01 12:00:00',
   publisher text NOT NULL,
   repositoryId integer(11) NOT NULL default '0',
   PRIMARY KEY  (publicationId)
@@ -242,8 +242,8 @@ CREATE TABLE cmServiceDefinitionAvailableServiceBinding (
 CREATE TABLE cmSiteNode (
   siteNodeId integer(11) unsigned NOT NULL auto_increment,
   name varchar(255) NOT NULL,
-  publishDateTime datetime NOT NULL default '0000-00-00 00:00:00',
-  expireDateTime datetime NOT NULL default '0000-00-00 00:00:00',
+  publishDateTime datetime NOT NULL default '1970-01-01 12:00:00',
+  expireDateTime datetime NOT NULL default '2070-01-01 12:00:00',
   parentSiteNodeId integer(11) default NULL,
   creator text NOT NULL,
   repositoryId integer(11) NOT NULL default '0',
@@ -272,7 +272,7 @@ CREATE TABLE cmSiteNodeVersion (
   siteNodeVersionId integer(11) unsigned NOT NULL auto_increment,
   stateId tinyint(4) NOT NULL default '0',
   versionNumber integer(11) NOT NULL default '0',
-  modifiedDateTime datetime NOT NULL default '0000-00-00 00:00:00',
+  modifiedDateTime datetime NOT NULL default '1970-01-01 12:00:00',
   versionComment text NOT NULL,
   isCheckedOut tinyint(4) NOT NULL default '0',
   isActive tinyint(4) NOT NULL default '1',
@@ -319,7 +319,7 @@ CREATE TABLE cmSystemUserRole (
 CREATE TABLE cmTransactionHistory (
   transactionHistoryId integer(11) unsigned NOT NULL auto_increment,
   name varchar(255) NOT NULL,
-  transactionDateTime datetime NOT NULL default '0000-00-00 00:00:00',
+  transactionDateTime datetime NOT NULL default '1970-01-01 12:00:00',
   transactionTypeId integer(11) NOT NULL default '0',
   transactionObjectId text NOT NULL,
   transactionObjectName text NOT NULL,
@@ -697,8 +697,13 @@ CREATE TABLE cmRedirect (
   id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
   url TEXT NOT NULL,
   redirectUrl TEXT NOT NULL,
+  createdDateTime datetime,
+  publishDateTime datetime,
+  expireDateTime datetime,
+  modifier TEXT,
+  isUserManaged TINYINT NOT NULL DEFAULT '1',
   PRIMARY KEY(id)
-) TYPE = InnoDB;
+) CHARACTER SET utf8 COLLATE utf8_general_ci ENGINE=InnoDB;
 
 
 
@@ -721,7 +726,7 @@ CREATE TABLE  cmFormEntry (
   userAgent varchar(255) NOT NULL,
   registrationDateTime DATETIME,
 PRIMARY KEY  (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) CHARACTER SET utf8 COLLATE utf8_general_ci ENGINE=InnoDB;
 
 
 CREATE TABLE  cmFormEntryValue (
@@ -730,7 +735,7 @@ CREATE TABLE  cmFormEntryValue (
   value varchar(4096),
   formEntryId int(10) unsigned NOT NULL,
   PRIMARY KEY  (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) CHARACTER SET utf8 COLLATE utf8_general_ci ENGINE=InnoDB;
 
 
 CREATE TABLE cmFormEntryAsset (
@@ -742,7 +747,7 @@ CREATE TABLE cmFormEntryAsset (
   contentType VARCHAR(50) NOT NULL,
   assetBlob BLOB NOT NULL,
   PRIMARY KEY(id)
-) ENGINE = InnoDB DEFAULT CHARSET=utf8;
+) CHARACTER SET utf8 COLLATE utf8_general_ci ENGINE=InnoDB;
 
 
 CREATE TABLE cmSubscription (
@@ -756,7 +761,7 @@ CREATE TABLE cmSubscription (
   userEmail varchar(150) default NULL,
   lastNotifiedDateTime timestamp default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   PRIMARY KEY(id)
-) TYPE = InnoDB DEFAULT CHARSET=utf8;
+) CHARACTER SET utf8 COLLATE utf8_general_ci ENGINE=InnoDB;
 
 
 
@@ -767,7 +772,7 @@ CREATE TABLE cmSubscriptionFilter (
   filterCondition varchar(255) NOT NULL,
   isAndCondition tinyint(4) NOT NULL default '1',
   PRIMARY KEY(id)
-) TYPE = InnoDB DEFAULT CHARSET=utf8;
+) CHARACTER SET utf8 COLLATE utf8_general_ci ENGINE=InnoDB;
 
 
 

@@ -57,7 +57,7 @@ public class ExpireCacheJob implements Job
 
     public synchronized void execute(JobExecutionContext context) throws JobExecutionException
     {
-    	//System.out.println("context:" + CmsPropertyHandler.getContextRootPath());
+    	//logger.info("context:" + CmsPropertyHandler.getContextRootPath());
     	long diffLastRun = ((System.currentTimeMillis() - lastRun) / 1000);
     	if(diffLastRun < 300)
     		return;
@@ -142,7 +142,8 @@ public class ExpireCacheJob implements Job
 	        }
 	        catch(Exception e)
 	        {
-	            logger.error("An error occurred when we tried to validate caches:" + e.getMessage(), e);
+	            logger.error("An error occurred when we tried to validate caches:" + e.getMessage());
+	            logger.warn("An error occurred when we tried to validate caches:" + e.getMessage(), e);
 	        }
 		    
 	        logger.debug("releasing block");
@@ -196,7 +197,8 @@ public class ExpireCacheJob implements Job
         }
         catch (Exception e)
         {
-            e.printStackTrace();
+            logger.error("An error occurred when we tried to update cache:" + e.getMessage());
+            logger.warn("An error occurred when we tried to update cache:" + e.getMessage(), e);
         }    	
 
         logger.info("---" + context.getJobDetail().getFullName() + " executing.[" + new Date() + "]");
@@ -253,7 +255,8 @@ public class ExpireCacheJob implements Job
                 }
                 catch(Exception e)
                 {
-                    logger.error("An error occurred when we tried to update cache:" + e.getMessage(), e);
+                    logger.error("An error occurred when we tried to update cache:" + e.getMessage());
+                    logger.warn("An error occurred when we tried to update cache:" + e.getMessage(), e);
                 }
     		    
     		    logger.info("releasing block");
@@ -307,7 +310,8 @@ public class ExpireCacheJob implements Job
                 }
                 catch(Exception e)
                 {
-                    logger.error("An error occurred when we tried to update cache:" + e.getMessage(), e);
+                    logger.error("An error occurred when we tried to update cache:" + e.getMessage());
+                    logger.warn("An error occurred when we tried to update cache:" + e.getMessage(), e);
                 }
 
                 logger.info("releasing block");
@@ -349,7 +353,7 @@ public class ExpireCacheJob implements Job
 						                	logger.info("cacheFile:" + cacheFile.getName());
 						                	long lastModified = cacheFile.lastModified();
 					                		long differensInHours = (System.currentTimeMillis() - lastModified) / (60 * 60 * 1000);
-					                		//System.out.println("differensInHours:" + differensInHours);
+					                		//logger.info("differensInHours:" + differensInHours);
 					                		if(differensInHours > targetDiff)
 					                		{
 					                			logger.info("Deleting cached file as it was to old:" + differensInHours);
@@ -371,7 +375,8 @@ public class ExpireCacheJob implements Job
         }
         catch (Exception e)
         {
-            logger.error("An error occurred when we tried to update cache:" + e.getMessage(), e);
+            logger.error("An error occurred when we tried to update cache:" + e.getMessage());
+            logger.warn("An error occurred when we tried to update cache:" + e.getMessage(), e);
         }
     }
     

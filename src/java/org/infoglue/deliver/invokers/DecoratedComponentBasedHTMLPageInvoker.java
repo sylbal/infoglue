@@ -228,7 +228,9 @@ public class DecoratedComponentBasedHTMLPageInvoker extends ComponentBasedHTMLPa
 	 private String showInitialBindingDialog(Integer siteNodeId, Integer languageId, Integer contentId)
 	 {
 		 String componentEditorUrl = CmsPropertyHandler.getComponentEditorUrl();
-		 String url = "javascript:window.open('" + componentEditorUrl + "ViewSiteNodePageComponents!listComponents.action?siteNodeId=" + siteNodeId + "&languageId=" + languageId + "&contentId=" + (contentId == null ? "-1" : contentId) + "&specifyBaseTemplate=true&showSimple=" + this.getTemplateController().getDeliveryContext().getShowSimple() + "', 'BaseTemplate', 'width=600,height=700,left=50,top=50,toolbar=no,status=no,scrollbars=yes,location=no,menubar=no,directories=no,resizable=yes');";
+		 //String url = "javascript:window.open('" + componentEditorUrl + "ViewSiteNodePageComponents!listComponents.action?siteNodeId=" + siteNodeId + "&languageId=" + languageId + "&contentId=" + (contentId == null ? "-1" : contentId) + "&specifyBaseTemplate=true&showSimple=" + this.getTemplateController().getDeliveryContext().getShowSimple() + "', 'BaseTemplate', 'width=600,height=700,left=50,top=50,toolbar=no,status=no,scrollbars=yes,location=no,menubar=no,directories=no,resizable=yes');";
+		 String url = "" + componentEditorUrl + "ViewSiteNodePageComponents!listComponents.action?siteNodeId=" + siteNodeId + "&languageId=" + languageId + "&contentId=" + (contentId == null ? "-1" : contentId) + "&specifyBaseTemplate=true&showSimple=" + this.getTemplateController().getDeliveryContext().getShowSimple() + "";
+		 url = "javascript:openInlineDiv('" + url + "', 600, 800, true, true, 'BaseTemplate');";
 		 
 		 String pageTemplateHTML = " or choose a page template below.<br><br>";
 		 
@@ -283,7 +285,7 @@ public class DecoratedComponentBasedHTMLPageInvoker extends ComponentBasedHTMLPa
 		 
 		 this.getTemplateController().getDeliveryContext().setContentType("text/html");
 		 this.getTemplateController().getDeliveryContext().setDisablePageCache(true);
-		 return "<html><body style=\"font-family:verdana, sans-serif; font-size:10px;\">The page has no base component assigned yet. Click <a href=\"" + url + "\">here</a> to assign one" + (foundPageTemplate ? pageTemplateHTML : "") + "</body></html>";
+		 return "<html><head><script type='text/javascript' src='script/jquery/jquery-1.4.4.min.js'></script><script type='text/javascript' src='script/v3/infoglue.js'></script><script type='text/javascript' src='script/jqueryplugins/thickbox/thickbox-compressed.js'></script><link rel='stylesheet' type='text/css' href='script/jqueryplugins/thickbox/thickbox-ig.css' /><script type='text/javascript' src='script/v3/admin.js'></script></head><body style=\"font-family:verdana, sans-serif; font-size:10px;\">The page has no base component assigned yet. Click <a href=\"" + url + "\">here</a> to assign one" + (foundPageTemplate ? pageTemplateHTML : "") + "</body></html>";
 	 }
 
 
@@ -573,6 +575,7 @@ public class DecoratedComponentBasedHTMLPageInvoker extends ComponentBasedHTMLPa
 			templateController.setComponentLogic(new DecoratedComponentLogic(templateController, component));
 			Map context = super.getDefaultContext();
 			context.put("templateLogic", templateController);
+			context.put("model", component.getModel());
 			StringWriter cacheString = new StringWriter();
 			PrintWriter cachedStream = new PrintWriter(cacheString);
 			new VelocityTemplateProcessor().renderTemplate(context, cachedStream, componentString, false, component);
@@ -915,6 +918,10 @@ public class DecoratedComponentBasedHTMLPageInvoker extends ComponentBasedHTMLPa
 				
 			    StringBuffer sb = new StringBuffer();
 			    sb.append("<script type=\"text/javascript\">");
+				sb.append("hasAccessToAddComponentClickableDiv" + component.getId() + id.replaceAll("[^0-9,a-z,A-Z]", "_") + " = " + hasAccessToAddComponent + ";");
+				sb.append("hasAccessToChangeComponentClickableDiv" + component.getId() + id.replaceAll("[^0-9,a-z,A-Z]", "_") + " = " + hasAccessToChangeComponent + ";");
+				sb.append("hasAccessToDeleteComponentClickableDiv" + component.getId() + id.replaceAll("[^0-9,a-z,A-Z]", "_") + " = " + hasAccessToDeleteComponent + ";");
+
 				sb.append("hasAccessToAddComponent" + component.getId() + "_" + id.replaceAll("[^0-9,a-z,A-Z]", "_") + " = " + hasAccessToAddComponent + ";");
 				sb.append("hasAccessToChangeComponent" + component.getId() + "_" + id.replaceAll("[^0-9,a-z,A-Z]", "_") + " = " + hasAccessToChangeComponent + ";");
 				sb.append("hasAccessToAccessRights = " + hasAccessToAccessRights + ";");
@@ -978,11 +985,22 @@ public class DecoratedComponentBasedHTMLPageInvoker extends ComponentBasedHTMLPa
 		
 		List languages = LanguageDeliveryController.getLanguageDeliveryController().getLanguagesForSiteNode(getDatabase(), siteNodeId, templateController.getPrincipal());
 		
+		Collection componentProperties = getComponentProperties(componentId, document);
+		boolean skipLanguageDrop = true;
+		Iterator componentPropertiesIterator = componentProperties.iterator();
+		while(componentPropertiesIterator.hasNext())
+		{
+			ComponentProperty componentProperty = (ComponentProperty)componentPropertiesIterator.next();
+			boolean allowLanguageVariations = componentProperty.getAllowLanguageVariations();
+			if(allowLanguageVariations)
+				skipLanguageDrop = false;
+		}
+		
 		sb.append("<div id=\"component" + componentId + "Properties\" class=\"componentProperties\" style=\"right:5px; top:5px; position: absolute; visibility:hidden; display: none;\">");
 		sb.append("	<div id=\"component" + componentId + "PropertiesHandle\" class=\"componentPropertiesHandle\"><div class=\"leftPaletteHandleCompProps\">Properties - " + componentName + " in slot " + slotName + "</div><div class=\"rightPaletteHandleCompProps close\" onclick=\"hideDiv('component" + componentId + "Properties');\">&nbsp;</div></div>");
 
 		sb.append("	<form id=\"component" + componentId + "PropertiesForm\" name=\"component" + componentId + "PropertiesForm\" action=\"" + componentEditorUrl + "ViewSiteNodePageComponents!updateComponentProperties.action\" method=\"post\">");
-		if(languages.size() == 1)
+		if(languages.size() == 1 || skipLanguageDrop)
 			sb.append("<input type=\"hidden\" name=\"languageId\" value=\"" + ((LanguageVO)languages.get(0)).getId() + "\"/>");
 		
 		sb.append("		<div id=\"component" + componentId + "PropertiesBody\" class=\"componentPropertiesBody\">");
@@ -993,7 +1011,7 @@ public class DecoratedComponentBasedHTMLPageInvoker extends ComponentBasedHTMLPa
 		sb.append("			<td width=\"20%\"><img src='images/trans.gif' width='1' height='1' alt=\"trans\"/></td><td width=\"75%\"><img src='images/trans.gif' width='1' height='1' alt=\"trans\"/></td><td width=\"16\"><img src='images/trans.gif' width='16' height='1' alt=\"trans\"/></td><td width=\"16\"><img src='images/trans.gif' width='16' height='1' alt=\"trans\"/></td>");
 		sb.append("		</tr>");
 
-		if(languages.size() > 1)
+		if(languages.size() > 1 && !skipLanguageDrop)
 		{
 			sb.append("		<tr class=\"igtr\">");
 			sb.append("			<td class=\"igpropertylabel\" align=\"left\">" + getLocalizedString(locale, "deliver.editOnSight.changeLanguage") + "</td>");
@@ -1034,7 +1052,7 @@ public class DecoratedComponentBasedHTMLPageInvoker extends ComponentBasedHTMLPa
 			sb.append("		</tr>");
 		}
 		
-		Collection componentProperties = getComponentProperties(componentId, document);
+		//Collection componentProperties = getComponentProperties(componentId, document);
 		
 		String hideProtectedProperties = CmsPropertyHandler.getHideProtectedProperties();
 		int numberOfHiddenProperties = 0;
@@ -1042,7 +1060,8 @@ public class DecoratedComponentBasedHTMLPageInvoker extends ComponentBasedHTMLPa
 		int propertyIndex = 0;
 		int accessablePropertyIndex = 0;
 		boolean isAdvancedProperties = false;
-		Iterator componentPropertiesIterator = componentProperties.iterator();
+		//Iterator componentPropertiesIterator = componentProperties.iterator();
+		componentPropertiesIterator = componentProperties.iterator();
 		while(componentPropertiesIterator.hasNext())
 		{
 			ComponentProperty componentProperty = (ComponentProperty)componentPropertiesIterator.next();

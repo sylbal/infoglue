@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.infoglue.cms.applications.common.ImageButton;
 import org.infoglue.cms.applications.common.ToolbarButton;
 import org.infoglue.cms.applications.common.VisualFormatter;
 import org.infoglue.cms.entities.content.ContentVO;
@@ -71,7 +72,6 @@ public class ToolbarController implements ToolbarProvider
 	{
 		Timer t = new Timer();
 		
-		//System.out.println("toolbarKey:" + toolbarKey);
 		logger.info("toolbarKey:" + toolbarKey);
 		
 		try
@@ -96,7 +96,7 @@ public class ToolbarController implements ToolbarProvider
 			
 			if(toolbarKey.equalsIgnoreCase("tool.structuretool.siteNodeComponentsHeader"))
 				return getSiteNodeButtons(toolbarKey, principal, locale, request);
-							
+					
 			
 			/*
 			if(toolbarKey.equalsIgnoreCase("tool.structuretool.createSiteNodeHeader"))
@@ -257,6 +257,18 @@ public class ToolbarController implements ToolbarProvider
 			if(toolbarKey.equalsIgnoreCase("tool.tasktool.availableTasks.header"))
 				return asButtons(getCommonFooterCancelButton(toolbarKey, principal, locale, request, disableCloseButton));
 			
+			if(toolbarKey.equalsIgnoreCase("tool.contenttool.exportContent.header"))
+				return getCommonFooterSaveOrCancelButton(toolbarKey, principal, locale, request, disableCloseButton);
+			
+			if(toolbarKey.equalsIgnoreCase("tool.contenttool.exportContent.headerFinished"))
+				return asButtons(getDialogCloseButton(toolbarKey, principal, locale, request, disableCloseButton));
+
+			if(toolbarKey.equalsIgnoreCase("tool.contenttool.importContent.header"))
+				return getCommonFooterSaveOrCancelButton(toolbarKey, principal, locale, request, disableCloseButton);
+			
+			if(toolbarKey.equalsIgnoreCase("tool.contenttool.importContent.headerFinished"))
+				return asButtons(getDialogCloseButton(toolbarKey, principal, locale, request, disableCloseButton));
+			
 			if(toolbarKey.equalsIgnoreCase("tool.contenttool.createContentHeader") || toolbarKey.equalsIgnoreCase("tool.contenttool.createFolderHeader"))
 				return getCommonFooterSaveOrCancelButton(toolbarKey, principal, locale, request, disableCloseButton);
 			
@@ -294,6 +306,9 @@ public class ToolbarController implements ToolbarProvider
 			if(toolbarKey.equalsIgnoreCase("tool.structuretool.chooseContentsLabel"))
 				return getCommonFooterSaveOrCloseButton(toolbarKey, principal, locale, request, disableCloseButton);
 
+			if(toolbarKey.equalsIgnoreCase("tool.structuretool.componentPropertiesEditorLabel"))
+				return getCommonAddSaveCancelButton(toolbarKey, principal, locale, request, disableCloseButton);
+			
 			if(toolbarKey.equalsIgnoreCase("tool.structuretool.chooseRelatedContentsLabel"))
 				return getContentRelationFooterButtons(toolbarKey, principal, locale, request, disableCloseButton);
 			
@@ -462,6 +477,12 @@ public class ToolbarController implements ToolbarProvider
 		
 			if(toolbarKey.equalsIgnoreCase("tool.structuretool.moveSiteNode.header"))
 				return getCommonFooterSaveOrCancelButton(toolbarKey, principal, locale, request, disableCloseButton, null, getLocalizedString(locale, "tool.structuretool.toolbarV3.movePageLabel"), getLocalizedString(locale, "tool.structuretool.toolbarV3.movePageTitle"));
+			if(toolbarKey.equalsIgnoreCase("tool.structuretool.moveMultipleSiteNodes.header"))
+				return getCommonAddNextCancelButton(toolbarKey, principal, locale, request, disableCloseButton);
+			if(toolbarKey.equalsIgnoreCase("tool.structuretool.moveMultipleSiteNode.header"))
+				return getCommonFooterSaveOrCancelButton(toolbarKey, principal, locale, request, disableCloseButton);
+			if(toolbarKey.equalsIgnoreCase("tool.structuretool.moveMultipleSiteNode.finished"))
+				return asButtons(getDialogCloseButton(toolbarKey, principal, locale, request, disableCloseButton));
 			
 			if(toolbarKey.equalsIgnoreCase("tool.contenttool.moveContent.header"))
 				return getCommonFooterSaveOrCancelButton(toolbarKey, principal, locale, request, disableCloseButton, null, getLocalizedString(locale, "tool.contenttool.toolbarV3.moveContentLabel"), getLocalizedString(locale, "tool.contenttool.toolbarV3.moveContentLabel"));
@@ -922,8 +943,6 @@ public class ToolbarController implements ToolbarProvider
 	{
 		List<ToolbarButton> buttons = new ArrayList<ToolbarButton>();
 		
-		//System.out.println("Query:" + request.getQueryString());
-		
 		String contentIdString = request.getParameter("contentId");
 		if(contentIdString == null || contentIdString.equals(""))
 			contentIdString = (String)request.getAttribute("contentId");
@@ -1191,9 +1210,7 @@ public class ToolbarController implements ToolbarProvider
 
 	private List<ToolbarButton> getContentVersionFooterButtons(String toolbarKey, InfoGluePrincipal principal, Locale locale, HttpServletRequest request, boolean disableCloseButton) throws Exception
 	{
-		//System.out.println("request:" + request.getQueryString());
 		String saveAndExitURL = (String)request.getAttribute("saveAndExitURL");
-		//System.out.println("saveAndExitURL:" + saveAndExitURL);
 		
 		List<ToolbarButton> buttons = new ArrayList<ToolbarButton>();
 		
@@ -1229,9 +1246,7 @@ public class ToolbarController implements ToolbarProvider
 		if(contentVersionIdString == null || contentVersionIdString.equals(""))
 			contentVersionIdString = (String)request.getAttribute("contentVersionId");
 		
-		//System.out.println("request:" + request.getQueryString());
 		String saveAndExitURL = (String)request.getAttribute("saveAndExitURL");
-		//System.out.println("saveAndExitURL:" + saveAndExitURL);
 		
 		buttons.add(getCompareButton(toolbarKey, principal, locale, request, disableCloseButton));
 
@@ -1349,6 +1364,30 @@ public class ToolbarController implements ToolbarProvider
 	private List<ToolbarButton> getContentVersionAssetsForComponentBindingFooterButtons(String toolbarKey, InfoGluePrincipal principal, Locale locale, HttpServletRequest request, boolean disableCloseButton) throws Exception
 	{
 		List<ToolbarButton> buttons = new ArrayList<ToolbarButton>();
+
+		String contentIdString = request.getParameter("contentId");
+		if(contentIdString == null || contentIdString.equals(""))
+			contentIdString = (String)request.getAttribute("contentId");
+		
+		if(contentIdString != null && !contentIdString.equals("") && !contentIdString.equals("-1"))
+		{
+			Integer contentId = new Integer(contentIdString);
+			ContentVO contentVO = ContentController.getContentController().getContentVOWithId(contentId);
+			
+			String contentVersionIdString = request.getParameter("contentVersionId");
+			Integer contentVersionId = null;
+			if(contentVersionIdString == null)
+			{
+				LanguageVO masterLanguageVO = LanguageController.getController().getMasterLanguage(contentVO.getRepositoryId());
+				ContentVersionVO contentVersionVO = ContentVersionController.getContentVersionController().getLatestActiveContentVersionVO(contentId, masterLanguageVO.getId());
+				if(contentVersionVO != null)
+					contentVersionId = contentVersionVO.getId();
+			}
+			else
+			{
+				contentVersionId = new Integer(contentVersionIdString);
+			}
+		}
 		
 		buttons.add(new ToolbarButton("useSelectedAsset", 
 				  getLocalizedString(locale, "tool.contenttool.assetDialog.chooseAttachment"), 
@@ -1366,7 +1405,21 @@ public class ToolbarController implements ToolbarProvider
 		buttons.add(new ToolbarButton("uploadAsset", 
 				  getLocalizedString(locale, "tool.contenttool.uploadNewAttachment"), 
 				  getLocalizedString(locale, "tool.contenttool.uploadNewAttachment"), 
-				  "ViewDigitalAsset.action",
+				  "uploadAsset();", 
+				  "", 
+				  "", 
+				  "attachAsset", 
+				  true, 
+				  false, 
+				  "", 
+				  "", 
+				  ""));
+		
+		/*
+		buttons.add(new ToolbarButton("uploadAsset", 
+				  getLocalizedString(locale, "tool.contenttool.uploadNewAttachment"), 
+				  getLocalizedString(locale, "tool.contenttool.uploadNewAttachment"), 
+				  "ViewDigitalAsset.action?contentVersionId=" + contentVersionId,
 				  "", 
 				  "", 
 				  "attachAsset", 
@@ -1377,6 +1430,7 @@ public class ToolbarController implements ToolbarProvider
 				  "inlineDiv",
 				  500,
 				  550));
+				  */
 
 		buttons.add(getCommonFooterCancelButton(toolbarKey, principal, locale, request, disableCloseButton));
 		
@@ -1611,13 +1665,25 @@ public class ToolbarController implements ToolbarProvider
 				  "",
 				  "create"));
 
-		buttons.add(new ToolbarButton("moveSiteNode",
+		ToolbarButton moveSiteNodeButton = new ToolbarButton("moveSiteNode",
 				  getLocalizedString(locale, "tool.structuretool.toolbarV3.movePageLabel"), 
 				  getLocalizedString(locale, "tool.structuretool.toolbarV3.movePageTitle"),
 				  "MoveSiteNode!inputV3.action?repositoryId=" + siteNodeVO.getRepositoryId() + "&siteNodeId=" + siteNodeId + "&hideLeafs=true&returnAddress=ViewInlineOperationMessages.action&originalAddress=refreshParent",
 				  "",
-				  "movePage"));
+				  "movePage");
 
+
+		ToolbarButton moveMultipleSiteNodeButton = new ToolbarButton("moveMultipleSiteNode",
+				  getLocalizedString(locale, "tool.structuretool.toolbarV3.moveMultiplePageLabel"), 
+				  getLocalizedString(locale, "tool.structuretool.toolbarV3.moveMultiplePageTitle"),
+				  "MoveMultipleSiteNodes!input.action?repositoryId=" + siteNodeVO.getRepositoryId() + "&siteNodeId=" + siteNodeId + "&returnAddress=ViewInlineOperationMessages.action&originalAddress=refreshParent",
+				  "",
+				  "movePage");
+		
+		moveSiteNodeButton.getSubButtons().add(moveMultipleSiteNodeButton);
+
+		buttons.add(moveSiteNodeButton);
+				
 		//if(!hasPublishedVersion())
 		//{
 			buttons.add(new ToolbarButton("deleteSiteNode",
@@ -2796,8 +2862,9 @@ public class ToolbarController implements ToolbarProvider
 		List<ToolbarButton> buttons = new ArrayList<ToolbarButton>();
 
 		String url = "CategoryManagement!new.action";
-		//if(primaryKeyAsInteger != null)
-		//	url += "?model/parentId=" + primaryKeyAsInteger;
+		String categoryIdString = request.getParameter("categoryId");
+		if(categoryIdString != null && !categoryIdString.equals(""))
+			url += "?model/parentId=" + categoryIdString;
 
 		buttons.add(new ToolbarButton("",
 				  getLocalizedString(locale, "tool.managementtool.createCategory.header"), 
@@ -3829,6 +3896,25 @@ public class ToolbarController implements ToolbarProvider
 				
 		return buttons;		
 	}
+	
+	private List<ToolbarButton> getCommonAddSaveCancelButton(String toolbarKey, InfoGluePrincipal principal, Locale locale, HttpServletRequest request, boolean disableCloseButton)
+	{
+		List<ToolbarButton> buttons = new ArrayList<ToolbarButton>();
+
+		buttons.add(new ToolbarButton("",
+				  getLocalizedString(locale, "tool.common.addButton.label"), 
+				  getLocalizedString(locale, "tool.common.addButton.label"),
+				  "add();",
+				  "images/v3/addIcon.png",
+				  "left",
+				  "add",
+				  true));
+
+		buttons.addAll(getCommonFooterSaveOrCancelButton(toolbarKey, principal, locale, request, disableCloseButton));
+				
+		return buttons;		
+	}
+
 
 	private List<ToolbarButton> asButtons(ToolbarButton button)
 	{

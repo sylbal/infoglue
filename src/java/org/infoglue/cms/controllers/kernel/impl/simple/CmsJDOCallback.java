@@ -66,6 +66,7 @@ import org.infoglue.cms.entities.structure.SiteNode;
 import org.infoglue.cms.entities.structure.SiteNodeVersion;
 import org.infoglue.cms.entities.structure.impl.simple.SiteNodeImpl;
 import org.infoglue.cms.entities.structure.impl.simple.SiteNodeVersionImpl;
+import org.infoglue.cms.entities.structure.impl.simple.SmallSiteNodeImpl;
 import org.infoglue.cms.entities.structure.impl.simple.SmallSiteNodeVersionImpl;
 import org.infoglue.cms.entities.workflow.impl.simple.WorkflowDefinitionImpl;
 import org.infoglue.cms.exception.Bug;
@@ -89,14 +90,14 @@ public class CmsJDOCallback implements CallbackInterceptor
     
     public void using(Object object, Database db)
     {
-    	//System.out.println("Using " + object);
+    	//logger.error("Using " + object);
         // ( (Persistent) object ).jdoPersistent( db );
     }
 
 
     public Class loaded(Object object, short accessMode) throws Exception
     {
-		//System.out.println("Loaded " + object.getClass().getName() + " accessMode:" + accessMode);
+		//logger.error("Loaded " + object.getClass().getName() + " accessMode:" + accessMode);
 		//if(accessMode == AccessMode.Shared.getId())
     	//	Thread.dumpStack();
 		
@@ -106,7 +107,7 @@ public class CmsJDOCallback implements CallbackInterceptor
 
 	public Class loaded(Object arg0, AccessMode arg1) throws Exception 
 	{
-		//System.out.println("Loaded " + arg0.getClass().getName() + " accessMode:" + arg1);
+		//logger.error("Loaded " + arg0.getClass().getName() + " accessMode:" + arg1);
 		//if(arg1.getId() == AccessMode.Shared.getId())
 		//	Thread.dumpStack();
 		
@@ -115,7 +116,7 @@ public class CmsJDOCallback implements CallbackInterceptor
 
     public void storing(Object object, boolean modified) throws Exception
     {
-		//System.out.println("storing...:" + object + ":" + modified);
+		//logger.error("storing...:" + object + ":" + modified);
         // ( (Persistent) object ).jdoStore( modified );
 		//if(object.getClass().getName().indexOf("Small") > -1 || object.getClass().getName().indexOf("RepositoryLanguage") > -1 || object.getClass().getName().indexOf("ContentImpl") > -1 || object.getClass().getName().indexOf("SiteNodeImpl") > -1 || object.getClass().getName().indexOf("AccessRight") > -1 || object.getClass().getName().indexOf("StructureTool.Read") > -1)
 		//if(object.getClass().getName().indexOf("ContentImpl") > -1)
@@ -126,7 +127,7 @@ public class CmsJDOCallback implements CallbackInterceptor
     		RegistryImpl.class.getName().indexOf(object.getClass().getName()) == -1 && 
     		SubscriptionFilterImpl.class.getName().indexOf(object.getClass().getName()) == -1 && modified)
 	    {
-	        //System.out.println("Actually stored it:" + object + ":" + modified);
+	        //logger.error("Actually stored it:" + object + ":" + modified);
 	    	logger.info("Actually stored it:" + object + ":" + modified);
 	    	
 			String userName = "SYSTEM";
@@ -222,7 +223,7 @@ public class CmsJDOCallback implements CallbackInterceptor
 				CacheController.clearCache("cachedAssetFileList");
 				clearCache(SmallDigitalAssetImpl.class);
 				clearCache(DigitalAssetImpl.class);
-				//System.out.println("We should delete all images with digitalAssetId " + getObjectIdentity(object));
+				//logger.error("We should delete all images with digitalAssetId " + getObjectIdentity(object));
 				DigitalAssetController.deleteCachedDigitalAssets((Integer)getObjectIdentity(object));
 			}
 			else if(object.getClass().getName().equals(DigitalAssetImpl.class.getName()))
@@ -231,17 +232,20 @@ public class CmsJDOCallback implements CallbackInterceptor
 				CacheController.clearCache("cachedAssetFileList");
 				clearCache(SmallDigitalAssetImpl.class);
 				clearCache(MediumDigitalAssetImpl.class);
-				//System.out.println("We should delete all images with digitalAssetId " + getObjectIdentity(object));
+				//logger.error("We should delete all images with digitalAssetId " + getObjectIdentity(object));
 				DigitalAssetController.deleteCachedDigitalAssets((Integer)getObjectIdentity(object));
 			}
 			else if(object.getClass().getName().equals(SiteNodeImpl.class.getName()))
 			{
+				clearCache(SmallSiteNodeImpl.class);
 				CacheController.clearCache("childSiteNodesCache");
+				CacheController.clearCache("parentSiteNodeCache");
 			}
 			else if(object.getClass().getName().equals(SiteNodeVersionImpl.class.getName()))
 			{
 				clearCache(SmallSiteNodeVersionImpl.class);
 				CacheController.clearCache("childSiteNodesCache");
+				CacheController.clearCache("parentSiteNodeCache");
 			}
 			else if(object.getClass().getName().equals(WorkflowDefinitionImpl.class.getName()))
 			{
@@ -331,7 +335,7 @@ public class CmsJDOCallback implements CallbackInterceptor
     	//String className = object.getClass().getName();		
 		//if (CmsSystem.getTransactionHistoryEntityClassName().indexOf(className) == -1)
 		//	CmsSystem.transactionLogEntry("CMSJDOCallback:" + object.getClass().getName(), CmsSystem.TRANS_CREATE, getEntityId(object), object.toString());        
-		//System.out.println("created...:" + object + ":" + object.getClass().getName());
+		//logger.error("created...:" + object + ":" + object.getClass().getName());
     	logger.info("created..........................." + object + ":" + object.getClass().getName());
     	if (TransactionHistoryImpl.class.getName().indexOf(object.getClass().getName()) == -1 && 
     		RegistryImpl.class.getName().indexOf(object.getClass().getName()) == -1 && 
@@ -397,6 +401,7 @@ public class CmsJDOCallback implements CallbackInterceptor
 			else if(object.getClass().getName().equals(SiteNodeVersionImpl.class.getName()))
 			{
 				CacheController.clearCache("childSiteNodesCache");
+				CacheController.clearCache("parentSiteNodeCache");
 			}
 			else if(object.getClass().getName().equals(RepositoryLanguageImpl.class.getName()))
 			{
@@ -454,7 +459,7 @@ public class CmsJDOCallback implements CallbackInterceptor
 				clearCache(MediumDigitalAssetImpl.class);
 			}
 
-			//System.out.println("created end...:" + object);
+			//logger.error("created end...:" + object);
     	}
     }
 
@@ -468,7 +473,7 @@ public class CmsJDOCallback implements CallbackInterceptor
 
     public void removed( Object object ) throws Exception
     {
-		//System.out.println("removed...:" + object);
+		//logger.error("removed...:" + object);
         // ( (Persistent) object ).jdoAfterRemove();
         
        	if (TransactionHistoryImpl.class.getName().indexOf(object.getClass().getName()) == -1 && 
@@ -496,6 +501,7 @@ public class CmsJDOCallback implements CallbackInterceptor
 			if(object.getClass().getName().equals(RepositoryImpl.class.getName()))
 			{
 				CacheController.clearCache("repositoryCache");
+				CacheController.clearCache("repositoryRootNodesCache");
 			}
 			else if(object.getClass().getName().equals(InterceptionPointImpl.class.getName()))
 			{
@@ -557,12 +563,17 @@ public class CmsJDOCallback implements CallbackInterceptor
 			{
 			    RegistryController.getController().clearRegistryForReferencedEntity(SiteNode.class.getName(), getObjectIdentity(object).toString());
 				RegistryController.getController().clearRegistryForReferencingEntityCompletingName(SiteNode.class.getName(), getObjectIdentity(object).toString());
+				RedirectController.getController().deleteRelatedRedirects(Integer.parseInt(getObjectIdentity(object).toString()));
+				clearCache(SmallSiteNodeImpl.class);
 				CacheController.clearCache("childSiteNodesCache");
+				CacheController.clearCache("parentSiteNodeCache");
+				CacheController.clearCache("repositoryRootNodesCache");
 			}
 			else if(object.getClass().getName().equals(SiteNodeVersionImpl.class.getName()))
 			{
 				clearCache(SmallSiteNodeVersionImpl.class);
 				CacheController.clearCache("childSiteNodesCache");
+				CacheController.clearCache("parentSiteNodeCache");
 				RegistryController.getController().clearRegistryForReferencingEntityName(SiteNodeVersion.class.getName(), getObjectIdentity(object).toString());
 			}
 			else if(object.getClass().getName().equals(WorkflowDefinitionImpl.class.getName()))
@@ -617,7 +628,7 @@ public class CmsJDOCallback implements CallbackInterceptor
 
     public void releasing(Object object, boolean committed)
     {
-        //System.out.println("releasing...:" + object + ":" + committed);
+        //logger.error("releasing...:" + object + ":" + committed);
         // ( (Persistent) object ).jdoTransient();
         
         /*
@@ -639,7 +650,7 @@ public class CmsJDOCallback implements CallbackInterceptor
 
     public void updated(Object object) throws Exception
     {
-        //System.out.println("updated...:" + object);
+        //logger.error("updated...:" + object);
         // ( (Persistent) object ).jdoUpdate();
     	
     	//String className = object.getClass().getName();
